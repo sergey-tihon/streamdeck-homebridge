@@ -1,1 +1,10 @@
+source https://api.nuget.org/v3/index.json
+
+storage: none
+framework: netstandard2.0
+
+nuget Fable.Core
+nuget Fable.Browser.Dom
+nuget Fable.Browser.WebSocket
+
 http https://developer.elgato.com/documentation/stream-deck/distributiontool/DistributionToolMac.zip

@@ -1,0 +1,8 @@
+{
+    "schema": "./Homebridge.OpenAPI.json",
+    "output": "./Homebridge.API",
+    "project": "Homebridge.API",
+    "target": "fable",
+    "synchronous": false,
+    "asyncReturnType": "async"
+}
