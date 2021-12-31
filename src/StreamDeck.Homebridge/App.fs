@@ -11,7 +11,7 @@ let plugin :MailboxProcessor<PluginIn_Events> =
     MailboxProcessor.Start(fun inbox->
         let rec idle() = async {
             let! msg = inbox.Receive()
-            console.log($"Plugin message is: %A{msg}")
+            console.log($"Plugin message is: %A{msg}", msg)
             match msg with
             | PluginIn_Connected(startArgs, replyAgent) ->
                 return! loop startArgs replyAgent
@@ -19,7 +19,7 @@ let plugin :MailboxProcessor<PluginIn_Events> =
         }
         and loop startArgs replyAgent = async {
             let! msg = inbox.Receive()
-            console.log($"Plugin message is: %A{msg}")
+            console.log($"Plugin message is: %A{msg}", msg)
             match msg with
             | PluginIn_KeyUp(event, payload) ->
                 replyAgent.Post <| PluginOut_OpenUrl "https://www.elgato.com/en"
@@ -33,7 +33,7 @@ let pi :MailboxProcessor<PiIn_Events> =
     MailboxProcessor.Start(fun inbox->
         let rec loop() = async{
             let! msg = inbox.Receive()
-            console.log($"PI message is: %A{msg}")
+            console.log($"PI message is: %A{msg}", msg)
             return! loop()
         }
         loop()

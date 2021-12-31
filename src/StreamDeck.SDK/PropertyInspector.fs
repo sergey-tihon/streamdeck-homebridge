@@ -37,7 +37,7 @@ let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<Pi
         let sendJson (o:obj) = Utils.sendJson websocket o
         let rec loop() = async{
             let! msg = inbox.Receive()
-            console.log("PI sent event ", msg);
+            console.log($"PI sent event %A{msg}", msg);
             match msg with
             | PiOut_SetSettings payload ->
                 sendJson {|
@@ -99,7 +99,7 @@ let connectPropertyInspector (args:StartArgs) (agent:MailboxProcessor<PiIn_Event
         agent.Post <| PiIn_Connected (args,replyAgent)
 
     websocket.onmessage <- fun messageEvent -> 
-        let event = (Utils.fromJson messageEvent.data) :?> Event
+        let event = (Utils.parseJson messageEvent.data) :?> Event
         let payload = event.payload :?> ActionPayload
         let piEvent = 
             match event.event with

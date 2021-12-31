@@ -37,5 +37,5 @@ let sendJson (websocket:WebSocket) (o:obj) =
     JSON.stringify o
     |> websocket.send
 
-let fromJson (o:obj) =
+let parseJson (o:obj) =
     JSON.parse(o :?> string)

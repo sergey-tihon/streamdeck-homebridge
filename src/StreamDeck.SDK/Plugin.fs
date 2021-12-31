@@ -71,7 +71,7 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
         let sendJson (o:obj) = Utils.sendJson websocket o
         let rec loop() = async{
             let! msg = inbox.Receive()
-            console.log("Plugin sent event", msg);
+            console.log($"Plugin sent event %A{msg}", msg);
             match msg with
             | PluginOut_SetSettings(context, payload) ->
                 sendJson {|
@@ -172,7 +172,8 @@ let connectPlugin (args:Dto.StartArgs) (agent:MailboxProcessor<PluginIn_Events>)
         agent.Post <| PluginIn_Connected(args,replyAgent)
 
     websocket.onmessage <- fun messageEvent -> 
-        let event = (Utils.fromJson messageEvent.data) :?> Event
+        let json = Utils.parseJson messageEvent.data
+        let event = json :?> Event
         let payload = event.payload :?> ActionPayload
         let pEvent =
             match event.event with
@@ -183,10 +184,10 @@ let connectPlugin (args:Dto.StartArgs) (agent:MailboxProcessor<PluginIn_Events>)
             | "willAppear"                      -> Some <| PluginIn_WillAppear(event, payload)
             | "willDisappear"                   -> Some <| PluginIn_WillDisappear(event, payload)
             | "titleParametersDidChange"        -> Some <| PluginIn_TitleParametersDidChange(event, event.payload :?> ActionTitlePayload)
-            | "deviceDidConnect"                -> Some <| PluginIn_DeviceDidConnect(messageEvent.data :?> DeviceEvent)
-            | "deviceDidDisconnect"             -> Some <| PluginIn_DeviceDidDisconnect(messageEvent.data :?> DeviceEvent)
-            | "applicationDidLaunch"            -> Some <| PluginIn_ApplicationDidLaunch((messageEvent.data :?> ApplicationPayload).application)
-            | "applicationDidTerminate"         -> Some <| PluginIn_ApplicationDidTerminate((messageEvent.data :?> ApplicationPayload).application)
+            | "deviceDidConnect"                -> Some <| PluginIn_DeviceDidConnect(json :?> DeviceEvent)
+            | "deviceDidDisconnect"             -> Some <| PluginIn_DeviceDidDisconnect(json :?> DeviceEvent)
+            | "applicationDidLaunch"            -> Some <| PluginIn_ApplicationDidLaunch((json :?> ApplicationPayload).application)
+            | "applicationDidTerminate"         -> Some <| PluginIn_ApplicationDidTerminate((json :?> ApplicationPayload).application)
             | "systemDidWakeUp"                 -> Some <| PluginIn_SystemDidWakeUp
             | "propertyInspectorDidAppear"      -> Some <| PluginIn_PropertyInspectorDidAppear(event)
             | "propertyInspectorDidDisappear"   -> Some <| PluginIn_PropertyInspectorDidDisappear(event)
