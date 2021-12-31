@@ -9,12 +9,24 @@ open StreamDeck.SDK.PropertyInspector
 
 let plugin :MailboxProcessor<PluginIn_Events> = 
     MailboxProcessor.Start(fun inbox->
-        let rec loop() = async{
+        let rec idle() = async {
             let! msg = inbox.Receive()
             console.log($"Plugin message is: %A{msg}")
-            return! loop()
+            match msg with
+            | PluginIn_Connected(startArgs, replyAgent) ->
+                return! loop startArgs replyAgent
+            | _ -> return! idle()
         }
-        loop()
+        and loop startArgs replyAgent = async {
+            let! msg = inbox.Receive()
+            console.log($"Plugin message is: %A{msg}")
+            match msg with
+            | PluginIn_KeyUp(event, payload) ->
+                replyAgent.Post <| PluginOut_OpenUrl "https://www.elgato.com/en"
+            | _ -> ()
+            return! loop startArgs replyAgent
+        }
+        idle()
     )
 
 let pi :MailboxProcessor<PiIn_Events> = 
@@ -53,6 +65,3 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
         connectPropertyInspector args pi
     | _ -> 
         console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
-
-/// legacy support 
-let connectSocket = connectElgatoStreamDeckSocket

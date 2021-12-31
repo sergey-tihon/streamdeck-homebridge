@@ -33,47 +33,50 @@ and PiOut_Events =
 let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<PiOut_Events> = 
     let context = args.ActionInfo.Value.context
     let action = args.ActionInfo.Value.action
-    MailboxProcessor.Start(fun inbox->
+    MailboxProcessor.Start(fun inbox ->
+        let sendJson (o:obj) = Utils.sendJson websocket o
         let rec loop() = async{
-            match! inbox.Receive() with
+            let! msg = inbox.Receive()
+            console.log("PI sent event ", msg);
+            match msg with
             | PiOut_SetSettings payload ->
-                websocket.send {|
+                sendJson {|
                     event = "setSettings"
                     context = context
                     payload = payload
                 |}
             | PiOut_GetSettings ->
-                websocket.send {|
+                sendJson {|
                     event = "getSettings"
                     context = context
                 |}
             | PiOut_SetGlobalSettings payload ->
-                websocket.send {|
+                sendJson {|
                     event = "setGlobalSettings"
                     context = context
                     payload = payload
                 |}
             | PiOut_GetGlobalSettings ->
-                websocket.send {|
+                sendJson {|
                     event = "getGlobalSettings"
                     context = context
                 |}
             | PiOut_OpenUrl url ->
-                websocket.send {|
+                sendJson {|
                     event = "openUrl"
                     payload = {|
                         url =  url
                     |}
                 |}
             | PiOut_LogMessage message ->
-                websocket.send {|
+                sendJson {|
                     event = "logMessage"
                     payload = {|
                         message =  message
                     |}
                 |}
             | PiOut_SendToPlugin payload ->
-                websocket.send {|
+                sendJson {|
                     action = action
                     event = "sendToPlugin"
                     context = context
@@ -89,14 +92,14 @@ let connectPropertyInspector (args:StartArgs) (agent:MailboxProcessor<PiIn_Event
     let replyAgent = createReplyAgent args websocket
 
     websocket.onopen <- fun _ -> 
-        websocket.send {| 
+        Utils.sendJson websocket {| 
             event = "registerPropertyInspector"
             uuid = args.UUID
         |}
         agent.Post <| PiIn_Connected (args,replyAgent)
 
     websocket.onmessage <- fun messageEvent -> 
-        let event = messageEvent.data :?> Event
+        let event = (Utils.fromJson messageEvent.data) :?> Event
         let payload = event.payload :?> ActionPayload
         let piEvent = 
             match event.event with
@@ -104,6 +107,6 @@ let connectPropertyInspector (args:StartArgs) (agent:MailboxProcessor<PiIn_Event
             | "didReceiveGlobalSettings"    -> Some <| PiIn_DidReceiveGlobalSettings(payload.settings)
             | "sendToPropertyInspector"     -> Some <| PiIn_SendToPropertyInspector(event)
             | _ -> 
-                console.warn($"Unexpected event ({event.event}) received by Property Inspector")
+                console.warn($"Unexpected event ({event.event}) received by Property Inspector", event)
                 None
         piEvent |> Option.iter agent.Post

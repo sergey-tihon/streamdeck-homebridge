@@ -68,68 +68,71 @@ and PluginOut_Events =
 
 let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> = 
     MailboxProcessor.Start(fun inbox->
+        let sendJson (o:obj) = Utils.sendJson websocket o
         let rec loop() = async{
-            match! inbox.Receive() with
+            let! msg = inbox.Receive()
+            console.log("Plugin sent event", msg);
+            match msg with
             | PluginOut_SetSettings(context, payload) ->
-                websocket.send {|
+                sendJson {|
                     event = "setSettings"
                     context = context
                     payload = payload
                 |}
             | PluginOut_GetSettings context ->
-                websocket.send {|
+                sendJson {|
                     event = "getSettings"
                     context = context
                 |}
             | PluginOut_SetGlobalSettings(context, payload) ->
-                websocket.send {|
+                sendJson {|
                     event = "setGlobalSettings"
                     context = context
                     payload = payload
                 |}
             | PluginOut_GetGlobalSettings context ->
-                websocket.send {|
+                sendJson {|
                     event = "getGlobalSettings"
                     context = context
                 |}
             | PluginOut_OpenUrl url ->
-                websocket.send {|
+                sendJson {|
                     event = "openUrl"
                     payload = {|
                         url =  url
                     |}
                 |}
             | PluginOut_LogMessage message ->
-                websocket.send {|
+                sendJson {|
                     event = "logMessage"
                     payload = {|
                         message =  message
                     |}
                 |}
             | PluginOut_SetTitle(context, payload) ->
-                websocket.send {|
+                sendJson {|
                     event = "setTitle"
                     context = context
                     payload = payload
                 |}
             | PluginOut_SetImage(context, payload) ->
-                websocket.send {|
+                sendJson {|
                     event = "setImage"
                     context = context
                     payload = payload
                 |}
             | PluginOut_ShowAlert context ->
-                websocket.send {|
+                sendJson {|
                     event = "showAlert"
                     context = context
                 |}
             | PluginOut_ShowOk context ->
-                websocket.send {|
+                sendJson {|
                     event = "showOk"
                     context = context
                 |}
             | PluginOut_SetState(context, state) ->
-                websocket.send {|
+                sendJson {|
                     event = "setState"
                     context = context
                     payload = {|
@@ -137,7 +140,7 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
                     |}
                 |}
             | PluginOut_SwitchToProfile(context, device, profileName) ->
-                websocket.send {|
+                sendJson {|
                     event = "switchToProfile"
                     context = context
                     device = device
@@ -146,7 +149,7 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
                     |}
                 |}
             | PluginOut_SendToPropertyInspector(context, action, payload) ->
-                websocket.send {|
+                sendJson {|
                     action = action
                     event = "sendToPropertyInspector"
                     context = context
@@ -162,21 +165,21 @@ let connectPlugin (args:Dto.StartArgs) (agent:MailboxProcessor<PluginIn_Events>)
     let replyAgent = createReplyAgent websocket
 
     websocket.onopen <- fun _ -> 
-        websocket.send {| 
+        Utils.sendJson websocket {| 
             event = "registerPlugin"
             uuid = args.UUID
         |}
         agent.Post <| PluginIn_Connected(args,replyAgent)
 
     websocket.onmessage <- fun messageEvent -> 
-        let event = messageEvent.data :?> Event
+        let event = (Utils.fromJson messageEvent.data) :?> Event
         let payload = event.payload :?> ActionPayload
         let pEvent =
             match event.event with
             | "didReceiveSettings"              -> Some <| PluginIn_DidReceiveSettings(event, payload)
             | "didReceiveGlobalSettings"        -> Some <| PluginIn_DidReceiveGlobalSettings(payload.settings)
             | "keyDown"                         -> Some <| PluginIn_KeyDown(event, payload)
-            | "keyUp"                           -> Some <| PluginIn_KeyDown(event, payload)
+            | "keyUp"                           -> Some <| PluginIn_KeyUp(event, payload)
             | "willAppear"                      -> Some <| PluginIn_WillAppear(event, payload)
             | "willDisappear"                   -> Some <| PluginIn_WillDisappear(event, payload)
             | "titleParametersDidChange"        -> Some <| PluginIn_TitleParametersDidChange(event, event.payload :?> ActionTitlePayload)
@@ -189,6 +192,6 @@ let connectPlugin (args:Dto.StartArgs) (agent:MailboxProcessor<PluginIn_Events>)
             | "propertyInspectorDidDisappear"   -> Some <| PluginIn_PropertyInspectorDidDisappear(event)
             | "sendToPlugin"                    -> Some <| PluginIn_SendToPlugin(event)
             | _ -> 
-                console.warn($"Unexpected event ({event.event}) received by Plugin")
+                console.warn($"Unexpected event ({event.event}) received by Plugin", event)
                 None
         pEvent |> Option.iter agent.Post

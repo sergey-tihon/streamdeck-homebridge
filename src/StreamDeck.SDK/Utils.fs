@@ -1,7 +1,8 @@
 module StreamDeck.SDK.Utils
 
-open Fable.Core
+open Fable.Core.JS
 open Browser.Dom
+open Browser.Types
 open Browser.WebSocket
 
 let getCloseReason (event:Browser.Types.CloseEvent) =
@@ -31,3 +32,10 @@ let createWebSocket inPort =
         let reason = getCloseReason event
         console.warn("[STREAMDECK]***** WEBOCKET CLOSED **** reason: " + reason)
     websocket
+
+let sendJson (websocket:WebSocket) (o:obj) =
+    JSON.stringify o
+    |> websocket.send
+
+let fromJson (o:obj) =
+    JSON.parse(o :?> string)

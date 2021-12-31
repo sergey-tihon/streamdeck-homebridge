@@ -39,6 +39,7 @@ Target.create "Clean" (fun _ ->
 
 Target.create "Build" (fun _ ->
     Shell.copyDir $"bin/{name}" $"src/{name}" (fun _ -> true)
+    Shell.Exec("npm", "run build") |> ignore
 )
 
 Target.create "Release" (fun _ ->

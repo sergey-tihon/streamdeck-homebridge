@@ -5,11 +5,16 @@
 var path = require("path");
 
 module.exports = {
+    devtool: "source-map",
     mode: "development",
     entry: "./src/StreamDeck.Homebridge/App.fs.js",
     output: {
         path: path.join(__dirname, "./bin/com.sergeytihon.homebridge.sdPlugin"),
         filename: "bundle.js",
+        library: {
+            name: 'SDPlugin',
+            type: 'var'
+        },
     },
     devServer: {
         publicPath: "/",

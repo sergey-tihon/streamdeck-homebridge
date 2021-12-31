@@ -2,18 +2,21 @@
 <html>
 
 <head>
-	<title>com.sergeytihon.homebridge</title>
-	<meta charset="utf-8" />
-	<style>
-		canvas {
-			background-color:transparent;
-		}
-	</style>
+    <title>com.sergeytihon.homebridge</title>
+    <meta charset="utf-8" />
+    <style>
+        canvas {
+            background-color: transparent;
+        }
+    </style>
 </head>
 
 <body>
-	<script src="propertyinspector/js/common.js"></script>
-	<script src="app.js"></script>
+    <script src="bundle.js"></script>
+    <script type="text/javascript">
+        const connectElgatoStreamDeckSocket = SDPlugin.connectElgatoStreamDeckSocket
+        const connectSocket = connectElgatoStreamDeckSocket // legacy support 
+    </script>
 </body>
 
 </html>

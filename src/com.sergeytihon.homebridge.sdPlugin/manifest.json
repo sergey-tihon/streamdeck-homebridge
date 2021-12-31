@@ -2,21 +2,26 @@
     "Actions": [
         {
             "Icon": "action/images/actionimage",
-            "Name": "Example Action",
+            "Name": "Toggle",
             "States": [
                 {
-                    "Image": "action/images/action"
+                    "Image": "action/images/action",
+                    "Name": "On"
+                },
+                {
+                    "Image": "action/images/action",
+                    "Name": "Off"
                 }
             ],
-            "Tooltip": "This is an example tooltip",
-            "UUID": "com.sergeytihon.homebridge.action"
+            "Tooltip": "Toggle accessory (Turn on or off).",
+            "UUID": "com.sergeytihon.homebridge.toggle"
         }
     ],
     "SDKVersion": 2,
     "Author": "Sergey Tihon",
     "CodePath": "index.html",
     "PropertyInspectorPath": "propertyinspector/index.html",
-    "Description": "Example description",
+    "Description": "Control your Homebridge accessories",
     "Name": "Homebridge",
     "Icon": "resources/pluginIcon",
     "URL": "https://github.com/sergey-tihon/streamdeck-homebridge",
