@@ -7,6 +7,7 @@
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Homebridge.API\Homebridge.API.fsproj" />
     <ProjectReference Include="..\StreamDeck.SDK\StreamDeck.SDK.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
