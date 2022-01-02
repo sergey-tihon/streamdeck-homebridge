@@ -20,7 +20,7 @@
     "SDKVersion": 2,
     "Author": "Sergey Tihon",
     "CodePath": "index.html",
-    "PropertyInspectorPath": "propertyinspector/index.html",
+    "PropertyInspectorPath": "pi.html",
     "Description": "Control your Homebridge accessories",
     "Name": "Homebridge",
     "Icon": "resources/pluginIcon",

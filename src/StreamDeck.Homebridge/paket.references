@@ -1,4 +1,6 @@
 Fable.Core
+Fable.SimpleHttp
+Fable.SimpleJson
 Fable.Browser.Dom
 Fable.Elmish.React
 Fable.Elmish.HMR
