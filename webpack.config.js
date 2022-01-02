@@ -17,9 +17,11 @@ module.exports = {
         },
     },
     devServer: {
-        publicPath: "/",
-        contentBase: "./bin/com.sergeytihon.homebridge.sdPlugin",
-        port: 8080,
+        static: {
+            directory: path.join(__dirname, 'bin/com.sergeytihon.homebridge.sdPlugin'),
+            publicPath: "/",
+        },
+        port: 4200,
     },
     module: {
     }

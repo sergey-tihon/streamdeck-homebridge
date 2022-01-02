@@ -1,2 +1,5 @@
 Fable.Core
 Fable.Browser.Dom
+Fable.Elmish.React
+Fable.Elmish.HMR
+Fable.Elmish.Debugger

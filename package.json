@@ -2,8 +2,13 @@
     "private": true,
     "scripts": {
         "postinstall": "dotnet tool restore",
-        "start": "dotnet fable watch src/StreamDeck.Homebridge",
+        "start": "dotnet fable watch src/StreamDeck.Homebridge --run webpack-dev-server",
         "build": "dotnet fable src/StreamDeck.Homebridge && webpack"
+    },
+    "dependencies": {
+        "react": "^16.0.0",
+        "react-dom": "^16.0.0",
+        "remotedev": "^0.2.7"
     },
     "devDependencies": {
         "webpack": "^5.65.0",

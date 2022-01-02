@@ -65,3 +65,17 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
         connectPropertyInspector args pi
     | _ -> 
         console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
+
+
+open Elmish
+open Elmish.Navigation
+open Elmish.HMR
+open Elmish.Debug
+
+let startPropertyInspectorApp() =
+    Program.mkProgram PI.init PI.update PI.view
+    #if DEBUG
+    |> Program.withDebugger
+    #endif
+    |> Program.withReactBatched "elmish-app"
+    |> Program.run

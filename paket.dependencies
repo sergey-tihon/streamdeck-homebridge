@@ -8,5 +8,8 @@ nuget Fable.Browser.Dom
 nuget Fable.Browser.WebSocket
 nuget Fable.SimpleJson
 nuget Fable.SimpleHttp
+nuget Fable.Elmish.Debugger
+nuget Fable.Elmish.React
+nuget Fable.Elmish.HMR
 
 http https://developer.elgato.com/documentation/stream-deck/distributiontool/DistributionToolMac.zip
