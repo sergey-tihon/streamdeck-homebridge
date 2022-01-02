@@ -7,8 +7,6 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StreamDeck.Homebridge", "sr
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StreamDeck.SDK", "src\StreamDeck.SDK\StreamDeck.SDK.fsproj", "{693C8594-2C39-4F68-BAEE-D24D22A9BBAA}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Homebridge.API", "src\Homebridge.API\Homebridge.API.fsproj", "{97A2F04F-0CA0-44A8-AC2E-2E6156A5CEC9}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +26,5 @@ Global
 		{693C8594-2C39-4F68-BAEE-D24D22A9BBAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{693C8594-2C39-4F68-BAEE-D24D22A9BBAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{693C8594-2C39-4F68-BAEE-D24D22A9BBAA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{97A2F04F-0CA0-44A8-AC2E-2E6156A5CEC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{97A2F04F-0CA0-44A8-AC2E-2E6156A5CEC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{97A2F04F-0CA0-44A8-AC2E-2E6156A5CEC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{97A2F04F-0CA0-44A8-AC2E-2E6156A5CEC9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -19,12 +19,6 @@
       "commands": [
         "fable"
       ]
-    },
-    "hawaii": {
-      "version": "0.57.0",
-      "commands": [
-        "hawaii"
-      ]
     }
   }
 }
