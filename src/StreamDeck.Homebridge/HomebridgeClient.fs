@@ -4,9 +4,13 @@ open Browser
 open Fable.SimpleHttp
 open Fable.SimpleJson
 
-let server = "http://192.168.0.1:8581"
-
-type AuthInfo =
+type ServerInfo = 
+    {
+        Host: string
+        UserName: string
+        Password: string
+    }
+and AuthResult =
     {
         access_token: string
         expires_in: int
@@ -79,7 +83,7 @@ and AccessoryInfo =
     }
 
 
-let inline private sendWithAuth (auth:AuthInfo) (req:HttpRequest) =
+let inline private sendWithAuth (auth:AuthResult) (req:HttpRequest) =
     req
     |> Http.headers [
         Headers.contentType "application/json"
@@ -96,47 +100,58 @@ let inline private parseResp<'a> successCode (responce:HttpResponse) =
     else None
 
 
-let authenticate (username:string) (password:string) = 
+let authenticate (serverInfo:ServerInfo) = 
     async {
         let body = Json.serialize {|
-            username = username
-            password = password
+            username = serverInfo.UserName
+            password = serverInfo.Password
         |}
         let! responce = 
-            Http.request $"{server}/api/auth/login" 
+            Http.request $"{serverInfo.Host}/api/auth/login" 
             |> Http.method POST
             |> Http.content (BodyContent.Text body)
             |> Http.header (Headers.contentType "application/json")
             |> Http.send
-        return parseResp<AuthInfo> 201 responce
+        return 
+            if responce.statusCode = 201 then
+                Json.tryParseAs<AuthResult> responce.responseText
+            else Error ($"Unsuccessful login. {responce.responseText}")
     }
 
-let getAccessories (auth:AuthInfo) = 
+let getAccessories host (auth:AuthResult) = 
     async {
         let! responce = 
-            Http.request $"{server}/api/accessories"
+            Http.request $"%s{host}/api/accessories"
             |> sendWithAuth auth
         return parseResp<AccessoryDetails[]> 200 responce
     }
 
-let getAccessoriesLayout (auth:AuthInfo) =
+let getAccessoriesLayout host (auth:AuthResult) =
     async {
         let! responce = 
-            Http.request $"{server}/api/accessories/layout"
+            Http.request $"%s{host}/api/accessories/layout"
             |> sendWithAuth auth
         return parseResp<RoomLayout[]> 200 responce
     }
 
-let setAccessoryCharacteristic (auth:AuthInfo) (uniqueId:string) (characteristicType:string) (value:int) = 
+let setAccessoryCharacteristic host (auth:AuthResult) (uniqueId:string) (characteristicType:string) (value:int) = 
     async {
         let body = Json.serialize {|
             characteristicType = characteristicType
             value = value
         |}
         let! responce = 
-            Http.request $"{server}/api/accessories/{uniqueId}"
+            Http.request $"%s{host}/api/accessories/{uniqueId}"
             |> Http.method PUT
             |> Http.content (BodyContent.Text body)
+            |> sendWithAuth auth
+        return parseResp<AccessoryDetails> 200 responce
+    }
+
+let getAccessory host (auth:AuthResult) (uniqueId:string)= 
+    async {
+        let! responce = 
+            Http.request $"%s{host}/api/accessories/{uniqueId}"
             |> sendWithAuth auth
         return parseResp<AccessoryDetails> 200 responce
     }
