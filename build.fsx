@@ -42,7 +42,7 @@ Target.create "Build" (fun _ ->
     Shell.Exec("npm", "run build") 
     |> function
        | 0 -> ()
-       | code -> failwith "build failed with code %d" code
+       | code -> failwithf "build failed with code %d" code
 )
 
 Target.create "Release" (fun _ ->

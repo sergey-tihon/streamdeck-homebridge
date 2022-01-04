@@ -145,7 +145,7 @@ let view model dispatch =
                     Value model.ServerInfo.Host
                     Placeholder "e.g. http://192.168.0.213:8581"
                     Required true
-                    Pattern "http://d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{2,5}"
+                    Pattern "http://d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\:\\d{2,5}"
                     OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Host = x.Value })
                 ]
             ]
