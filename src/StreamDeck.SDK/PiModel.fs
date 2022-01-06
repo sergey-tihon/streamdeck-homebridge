@@ -1,4 +1,4 @@
-module StreamDeck.SDK.PropertyInspector
+module StreamDeck.SDK.PiModel
 
 open Browser.Dom
 open Browser.Types

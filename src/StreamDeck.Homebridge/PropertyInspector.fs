@@ -5,7 +5,7 @@ open Elmish
 open Fable.React
 open Fable.React.Props
 open StreamDeck.SDK.Dto
-open StreamDeck.SDK.PropertyInspector
+open StreamDeck.SDK.PiModel
 
 type PiModel =
     { 

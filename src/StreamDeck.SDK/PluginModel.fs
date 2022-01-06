@@ -1,4 +1,4 @@
-module StreamDeck.SDK.Plugin
+module StreamDeck.SDK.PluginModel
 
 open Browser.Dom
 open Browser.Types

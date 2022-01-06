@@ -3,8 +3,8 @@ module StreamDeck.Homebridge.App
 open Fable.Core.JS
 open Browser.Dom
 open StreamDeck.SDK.Dto
-open StreamDeck.SDK.Plugin
-open StreamDeck.SDK.PropertyInspector
+open StreamDeck.SDK.PluginModel
+open StreamDeck.SDK.PiModel
 
 open Elmish
 open Elmish.Navigation
