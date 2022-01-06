@@ -231,12 +231,6 @@ let view model dispatch =
                     textarea [Type "textarea"; MaxLength 300] [str error]
                 ]
         | Ok _ ->
-            div [Class "sdpi-item"; Type "button"] [
-                button [
-                    Class "sdpi-item-value"; 
-                    OnClick (fun _ -> dispatch <| Logout)
-                ] [ str "Logout" ]
-            ]
             div [Class "sdpi-item"] [
                 div [Class "sdpi-item-label"] [str "Accessory"]
                 select [
@@ -313,4 +307,10 @@ let view model dispatch =
                     ]
                 | None -> ()
             | _ -> ()
+            div [Class "sdpi-item"; Type "button"] [
+                button [
+                    Class "sdpi-item-value"; 
+                    OnClick (fun _ -> dispatch <| Logout)
+                ] [ str "Logout" ]
+            ]
     ]
