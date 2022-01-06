@@ -51,7 +51,7 @@ let init isDevMode = fun () ->
             CharacteristicType = None
         }
     }
-    state, Cmd.none //Cmd.ofMsg GetData
+    state, Cmd.none
 
 let filterBoolCharacteristics (accessory:Client.AccessoryDetails) =
     let characteristics =
@@ -120,9 +120,9 @@ let update (msg:PiMsg) (model:PiModel) =
         let delayedCmd (dispatch: PiMsg -> unit) : unit =
             async {
                 match model.AuthInfo with 
-                | Ok token ->
-                    let! layout = Client.getAccessoriesLayout model.ServerInfo.Host token
-                    let! data = Client.getAccessories model.ServerInfo.Host token
+                | Ok auth ->
+                    let! layout = Client.getAccessoriesLayout model.ServerInfo.Host auth
+                    let! data = Client.getAccessories model.ServerInfo.Host auth
                     match data, layout with
                     | Some(data), Some(layout) ->
                         let accessories = 
@@ -132,6 +132,7 @@ let update (msg:PiMsg) (model:PiModel) =
                                 if accessory'.serviceCharacteristics.Length > 0
                                 then Some accessory' else None
                             )
+                        console.warn("!!!")
                         dispatch <| SetData (accessories, layout)
                     | _ -> ()
                 | _ -> ()
@@ -244,12 +245,16 @@ let view model dispatch =
                     for room in model.Layout do
                         optgroup [Label room.name] [
                             yield! room.services
-                            |> Array.choose (fun x -> Map.tryFind x.uniqueId model.Accessories)
-                            |> Array.sortBy (fun x -> x.serviceName)
-                            |> Array.map (fun item -> 
-                                option [Value item.uniqueId] [
-                                    str <| sprintf "%s - %s" item.humanType item.serviceName
-                                ]
+                            |> Array.choose (fun itemInfo -> 
+                                Map.tryFind itemInfo.uniqueId model.Accessories 
+                                |> Option.map (fun itemDetails ->
+                                    let name =  itemInfo.customName |> Option.defaultValue itemDetails.serviceName
+                                    name, itemDetails.uniqueId
+                                )
+                            )
+                            |> Array.sortBy fst
+                            |> Array.map (fun (name, uniqueId) -> 
+                                option [Value uniqueId] [str name]
                             )
                         ]
                 ]
@@ -297,6 +302,7 @@ let view model dispatch =
                         summary [] [str "More Info"]
                         h4 [] [str "Accessory Information"]
                         p [] [
+                            str "Human Type: "; str accessory.humanType
                             str "Manufacturer: "; str ai.Manufacturer; br []
                             str "Model: "; str ai.Model]
                         h4 [] [str "Service Characteristics"]

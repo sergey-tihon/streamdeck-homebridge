@@ -74,6 +74,7 @@ and AccessoryInfo =
         aid: int
         iid: int
         uuid: string
+        customName: string option
     }
 
 
