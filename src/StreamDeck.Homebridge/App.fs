@@ -18,7 +18,7 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
             let! msg = inbox.Receive()
             match msg with
             | PluginIn_Connected(startArgs, replyAgent) ->
-                replyAgent.Post (PluginOut_GetGlobalSettings startArgs.UUID)
+                replyAgent.Post <| PluginOut_GetGlobalSettings
                 return! loop startArgs replyAgent None
             | _ -> 
                 console.warn($"Idle plugin agent received unexpected message %A{msg}", msg)

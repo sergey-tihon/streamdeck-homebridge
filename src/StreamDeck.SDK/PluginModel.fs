@@ -44,9 +44,9 @@ and PluginOut_Events =
     /// Request the persistent data for the action's instance.
     | PluginOut_GetSettings of context:string
     /// Save data securely and globally for the plugin.
-    | PluginOut_SetGlobalSettings of context:string * payload:obj
+    | PluginOut_SetGlobalSettings of payload:obj
     /// Request the global persistent data.
-    | PluginOut_GetGlobalSettings of context:string
+    | PluginOut_GetGlobalSettings
     /// Open an URL in the default browser.
     | PluginOut_OpenUrl of url:string
     /// Write a debug log to the logs file.
@@ -62,11 +62,12 @@ and PluginOut_Events =
     /// Change the state of the action's instance supporting multiple states.
     | PluginOut_SetState of context:string * state:int
     /// Switch to one of the preconfigured read-only profiles.
-    | PluginOut_SwitchToProfile of context:string * device:string * profileName:string
+    | PluginOut_SwitchToProfile of device:string * profileName:string
     /// Send a payload to the Property Inspector.
     | PluginOut_SendToPropertyInspector of context:string * action:string * payload:obj
 
-let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> = 
+let createReplyAgent (args:StartArgs)  (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> = 
+    let inPluginUUID = args.UUID
     MailboxProcessor.Start(fun inbox->
         let sendJson (o:obj) = Utils.sendJson websocket o
         let rec loop() = async{
@@ -76,24 +77,28 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
             | PluginOut_SetSettings(context, payload) ->
                 sendJson {|
                     event = "setSettings"
+                    // An opaque value identifying the instance's action.
                     context = context
                     payload = payload
                 |}
             | PluginOut_GetSettings context ->
                 sendJson {|
                     event = "getSettings"
+                    // An opaque value identifying the instance's action
                     context = context
                 |}
-            | PluginOut_SetGlobalSettings(context, payload) ->
+            | PluginOut_SetGlobalSettings(payload) ->
                 sendJson {|
                     event = "setGlobalSettings"
-                    context = context
+                    // An opaque value identifying the plugin (inPluginUUID). This value is received during the Registration procedure.
+                    context = inPluginUUID
                     payload = payload
                 |}
-            | PluginOut_GetGlobalSettings context ->
+            | PluginOut_GetGlobalSettings ->
                 sendJson {|
                     event = "getGlobalSettings"
-                    context = context
+                    // An opaque value identifying the plugin (inPluginUUID). This value is received during the Registration procedure.
+                    context = inPluginUUID
                 |}
             | PluginOut_OpenUrl url ->
                 sendJson {|
@@ -112,37 +117,43 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
             | PluginOut_SetTitle(context, payload) ->
                 sendJson {|
                     event = "setTitle"
+                    // An opaque value identifying the instance's action you want to modify.
                     context = context
                     payload = payload
                 |}
             | PluginOut_SetImage(context, payload) ->
                 sendJson {|
                     event = "setImage"
+                    // An opaque value identifying the instance's action you want to modify.
                     context = context
                     payload = payload
                 |}
             | PluginOut_ShowAlert context ->
                 sendJson {|
                     event = "showAlert"
+                    // An opaque value identifying the instance's action.
                     context = context
                 |}
             | PluginOut_ShowOk context ->
                 sendJson {|
                     event = "showOk"
+                    // An opaque value identifying the instance's action.
                     context = context
                 |}
             | PluginOut_SetState(context, state) ->
                 sendJson {|
                     event = "setState"
+                    // An opaque value identifying the instance's action.
                     context = context
                     payload = {|
                         state =  state
                     |}
                 |}
-            | PluginOut_SwitchToProfile(context, device, profileName) ->
+            | PluginOut_SwitchToProfile(device, profileName) ->
                 sendJson {|
                     event = "switchToProfile"
-                    context = context
+                    // An opaque value identifying the plugin. This value should be set to the PluginUUID received during the registration procedure.
+                    context = inPluginUUID
                     device = device
                     payload = {|
                         profile =  profileName
@@ -152,6 +163,7 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
                 sendJson {|
                     action = action
                     event = "sendToPropertyInspector"
+                    // An opaque value identifying the instance's action.
                     context = context
                     payload = payload
                 |}
@@ -162,7 +174,7 @@ let createReplyAgent (websocket:WebSocket) :MailboxProcessor<PluginOut_Events> =
 
 let connectPlugin (args:Dto.StartArgs) (agent:MailboxProcessor<PluginIn_Events>) =
     let websocket = Utils.createWebSocket args.Port
-    let replyAgent = createReplyAgent websocket
+    let replyAgent = createReplyAgent args websocket
 
     websocket.onopen <- fun _ -> 
         Utils.sendJson websocket {| 
