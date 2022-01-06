@@ -4,13 +4,7 @@ open Browser
 open Fable.SimpleHttp
 open Fable.SimpleJson
 
-type ServerInfo = 
-    {
-        Host: string
-        UserName: string
-        Password: string
-    }
-and AuthResult =
+type AuthResult =
     {
         access_token: string
         expires_in: int
@@ -100,7 +94,7 @@ let inline private parseResp<'a> successCode (responce:HttpResponse) =
     else None
 
 
-let authenticate (serverInfo:ServerInfo) = 
+let authenticate (serverInfo:Domain.GlobalSettings) = 
     async {
         let body = Json.serialize {|
             username = serverInfo.UserName

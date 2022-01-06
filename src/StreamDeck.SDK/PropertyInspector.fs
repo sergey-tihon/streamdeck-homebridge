@@ -31,7 +31,7 @@ and PiOut_Events =
     | PiOut_SendToPlugin of payload:obj
 
 let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<PiOut_Events> = 
-    let context = args.ActionInfo.Value.context
+    let context = args.UUID
     let action = args.ActionInfo.Value.action
     MailboxProcessor.Start(fun inbox ->
         let sendJson (o:obj) = Utils.sendJson websocket o

@@ -40,9 +40,9 @@ Target.create "Clean" (fun _ ->
 Target.create "Build" (fun _ ->
     Shell.copyDir $"bin/{name}" $"src/{name}" (fun _ -> true)
     Shell.Exec("npm", "run build") 
-    |> function
-       | 0 -> ()
-       | code -> failwithf "build failed with code %d" code
+    |>  function
+        | 0 -> ()
+        | code -> failwithf "build failed with code %d" code
 )
 
 Target.create "Release" (fun _ ->
@@ -50,7 +50,10 @@ Target.create "Release" (fun _ ->
     CreateProcess.fromRawCommand 
         "./paket-files/developer.elgato.com/DistributionTool"
         ["-b"; "-i"; $"bin/{name}"; "-o"; "./bin"]
-    |> Proc.run |> ignore
+    |> Proc.run 
+    |> fun res ->
+        if res.ExitCode <> 0
+        then failwithf "DistributionTool failed with code %d" res.ExitCode
 )
 
 Target.create "Deploy" (fun _ ->

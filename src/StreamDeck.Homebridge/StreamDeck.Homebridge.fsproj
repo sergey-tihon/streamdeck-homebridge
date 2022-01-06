@@ -4,12 +4,12 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Domain.fs" />
     <Compile Include="HomebridgeClient.fs" />
     <Compile Include="PropertyInspector.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Homebridge.API\Homebridge.API.fsproj" />
     <ProjectReference Include="..\StreamDeck.SDK\StreamDeck.SDK.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

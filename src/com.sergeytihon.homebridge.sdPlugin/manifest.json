@@ -1,16 +1,16 @@
 {
     "Actions": [
         {
-            "Icon": "action/images/actionimage",
-            "Name": "Toggle",
+            "Icon": "resources/actions/toggle-off",
+            "Name": "Toggle Accessory",
             "States": [
                 {
-                    "Image": "action/images/action",
-                    "Name": "On"
+                    "Image": "resources/actions/toggle-off",
+                    "Name": "Off"
                 },
                 {
-                    "Image": "action/images/action",
-                    "Name": "Off"
+                    "Image": "resources/actions/toggle-on",
+                    "Name": "On"
                 }
             ],
             "Tooltip": "Toggle accessory (Turn on or off).",

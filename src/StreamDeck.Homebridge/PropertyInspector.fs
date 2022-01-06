@@ -4,31 +4,38 @@ open Browser
 open Elmish
 open Fable.React
 open Fable.React.Props
+open StreamDeck.SDK.Dto
+open StreamDeck.SDK.PropertyInspector
 
 type PiModel =
     { 
-        ServerInfo: Client.ServerInfo
+        ReplyAgent: MailboxProcessor<PiOut_Events> option
+        ServerInfo: Domain.GlobalSettings
         AuthInfo: Result<Client.AuthResult, string>
         Accessories: Map<string, Client.AccessoryDetails>
         Layout: Client.RoomLayout[]
-        SelectedAccessoryId: string option
-        CharacteristicType: string option
+        ActionSetting: Domain.ToggleSetting
     }
 
 type PiMsg =
-    | UpdateServerInfo of Client.ServerInfo
-    | Login
+    | PiConnected of startArgs:StartArgs * replyAgent:MailboxProcessor<PiOut_Events>
+    | GlobalSettingsReceived of Domain.GlobalSettings
+    | ActionSettingReceived of Domain.ToggleSetting
+
+    | UpdateServerInfo of Domain.GlobalSettings
+    | Login of manual:bool
     | SetLoginResult of Result<Client.AuthResult,string>
     | Logout
     | GetData
     | SetData of Client.AccessoryDetails[] * Client.RoomLayout[]
-    | SelectedAccessory of uniqueId: string
-    | SelectedCharacteristic of characteristicType: string
+    | SelectedAccessory of uniqueId: string option
+    | SelectedCharacteristic of characteristicType: string option
     | ToggleCharacteristic
     | UpdateAccessory of accessory: Client.AccessoryDetails
 
 let init () =
     let state = {
+        ReplyAgent = None
         ServerInfo = {
             Host = "http://192.168.0.213:8581"
             UserName = "admin"
@@ -37,8 +44,10 @@ let init () =
         AuthInfo = Error null
         Accessories = Map.empty
         Layout = [||]
-        SelectedAccessoryId = None
-        CharacteristicType = None
+        ActionSetting = {
+            AccessoryId = None
+            CharacteristicType = None
+        }
     }
     state, Cmd.none //Cmd.ofMsg GetData
 
@@ -58,14 +67,42 @@ let getIntValue characteristicType (accessory:Client.AccessoryDetails) =
         |> Array.find (fun x -> x.``type`` = characteristicType)
     characteristic.value :?> int
 
+let sdDispatch msg (model:PiModel) =
+    match model.ReplyAgent with
+    | Some(agent) -> agent.Post msg
+    | None -> console.error("Message send before replyAgent assigned", msg)
+
 let update (msg:PiMsg) (model:PiModel) =
     match msg with
+    | PiConnected (startArgs, replyAgent) -> 
+        let model' = { model with ReplyAgent = Some replyAgent}
+        let model' = 
+            startArgs.ActionInfo
+            |> Option.map (fun x -> x.payload.settings)
+            |> Option.bind (Domain.tryParse<Domain.ToggleSetting>)
+            |>  function
+                | Some(x) -> { model' with ActionSetting = x }
+                | None -> model'
+        model', Cmd.none
+    | GlobalSettingsReceived settings ->
+        let model'= { 
+            model with 
+                ServerInfo = settings 
+                AuthInfo = Error null
+        }
+        model', Cmd.ofMsg (Login false)
+    | ActionSettingReceived settings ->
+        let model' = { model with ActionSetting = settings }
+        model', Cmd.none
     | UpdateServerInfo serverInfo ->
         { model with ServerInfo = serverInfo}, Cmd.none
-    | Login ->
+    | Login manual ->
         let delayedCmd (dispatch: PiMsg -> unit) : unit =
             async {
                 let! result = Client.authenticate model.ServerInfo
+                match manual, result with
+                | true, Ok _ ->  model |> sdDispatch (PiOut_SetGlobalSettings model.ServerInfo)
+                | _ -> ()
                 dispatch <| SetLoginResult result
             } |> Async.StartImmediate
         model, Cmd.ofSub delayedCmd
@@ -106,17 +143,29 @@ let update (msg:PiMsg) (model:PiModel) =
         }
         state, Cmd.none
     | SelectedAccessory uniqueId ->
-        let state = { 
+        let model' = { 
             model with 
-                SelectedAccessoryId = Some uniqueId 
-                CharacteristicType = None
+                ActionSetting = {
+                    model.ActionSetting with 
+                        AccessoryId = uniqueId
+                        CharacteristicType = None
+                }
         }
-        state, Cmd.none
+        model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
+        model', Cmd.none
     | SelectedCharacteristic characteristicType ->
-        { model with CharacteristicType = Some characteristicType }, Cmd.none
+        let model'= { 
+            model with 
+                ActionSetting = {
+                    model.ActionSetting with 
+                        CharacteristicType = characteristicType
+                } 
+        }
+        model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
+        model', Cmd.none
     | ToggleCharacteristic ->
         let delayedCmd (dispatch: PiMsg -> unit) : unit =
-            match model.AuthInfo, model.SelectedAccessoryId, model.CharacteristicType with
+            match model.AuthInfo, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
             | Ok(authInfo), Some(selectedAccessoryId), Some(characteristicType) ->
                 async {
                     let! accessory = Client.getAccessory model.ServerInfo.Host authInfo selectedAccessoryId
@@ -124,6 +173,7 @@ let update (msg:PiMsg) (model:PiModel) =
                     let targetValue = 1 - currentValue
                     let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
                     dispatch <| UpdateAccessory (filterBoolCharacteristics accessory'.Value)
+                    model |> sdDispatch (PiOut_SendToPlugin accessory'.Value)
                 } |> Async.StartImmediate
             | _ -> ()
         model, Cmd.ofSub delayedCmd
@@ -143,9 +193,9 @@ let view model dispatch =
                 input [
                     Class "sdpi-item-value"
                     Value model.ServerInfo.Host
-                    Placeholder "e.g. http://192.168.0.213:8581"
+                    Placeholder "e.g. http://192.168.0.1:8581"
                     Required true
-                    Pattern "http://d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\:\\d{2,5}"
+                    Pattern "http:\/\/\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{2,5}"
                     OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Host = x.Value })
                 ]
             ]
@@ -171,7 +221,7 @@ let view model dispatch =
             div [Class "sdpi-item"; Type "button"] [
                 button [
                     Class "sdpi-item-value"; 
-                    OnClick (fun _ -> dispatch <| Login)
+                    OnClick (fun _ -> dispatch <| Login true)
                 ] [ str "Login" ]
             ]
             if not <| System.String.IsNullOrEmpty(error) then
@@ -189,72 +239,46 @@ let view model dispatch =
                 div [Class "sdpi-item-label"] [str "Accessory"]
                 select [
                     Class "sdpi-item-value select"
-                    OnChange (fun x -> dispatch <| SelectedAccessory x.Value)
+                    Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
+                    OnChange (fun x -> 
+                        let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                        dispatch <| SelectedAccessory msg)
                 ] [
-                    option [] []
+                    option [Value "DEFAULT"] []
                     for room in model.Layout do
                         optgroup [Label room.name] [
                             yield! room.services
                             |> Array.choose (fun x -> Map.tryFind x.uniqueId model.Accessories)
                             |> Array.sortBy (fun x -> x.serviceName)
                             |> Array.map (fun item -> 
-                                option [
-                                    Value item.uniqueId
-                                    Selected <| 
-                                        match model.SelectedAccessoryId with
-                                        | Some(id) when id = item.uniqueId -> true
-                                        | _ -> false
-                                ] [
+                                option [Value item.uniqueId] [
                                     str <| sprintf "%s - %s" item.humanType item.serviceName
                                 ]
                             )
                         ]
                 ]
             ]
-            match model.SelectedAccessoryId with
-            | Some(uniqueId) ->
+            match model.ActionSetting.AccessoryId with
+            | Some(uniqueId) when model.Accessories.Count > 0 ->
                 let accessory = model.Accessories |> Map.find uniqueId
-                let ai = accessory.accessoryInformation
-                div [Class "sdpi-item"] [
-                    div [Class "sdpi-item-label"] [str "Accessory Information"]
-                    table [Class "sdpi-item-value no-select"] [
-                        tbody [] [
-                            tr [] [
-                                td [] [str "Manufacturer"]
-                                td [] [str ai.Manufacturer]
-                            ]
-                            tr [] [
-                                td [] [str "Model"]
-                                td [] [str ai.Model]
-                            ]
-                            tr [] [
-                                td [] [str "Name"]
-                                td [] [str ai.Name]
-                            ]
-                        ]
-                    ]
-                ]
                 div [Class "sdpi-item"] [
                     div [Class "sdpi-item-label"] [str "Characteristic"]
                     select [
                         Class "sdpi-item-value select"
-                        OnChange (fun x -> dispatch <| SelectedCharacteristic x.Value)
+                        Value (model.ActionSetting.CharacteristicType |> Option.defaultValue "DEFAULT")
+                        OnChange (fun x -> 
+                            let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                            dispatch <| SelectedCharacteristic msg)
                     ] [
-                        option [] []
+                        option [Value "DEFAULT"] []
                         let characteristics = accessory.serviceCharacteristics |> Array.sortBy (fun x -> x.``type``)
                         for x in characteristics do
-                            option [
-                                Value x.``type``
-                                Selected <| 
-                                    match model.CharacteristicType with
-                                    | Some(ty) when ty = x.``type`` -> true
-                                    | _ -> false
-                            ] [
+                            option [Value x.``type``] [
                                 str x.description
                             ]
                     ]
                 ]
-                match model.CharacteristicType with
+                match model.ActionSetting.CharacteristicType with
                 | Some _ ->
                     div [Class "sdpi-item"] [
                         button [
@@ -265,5 +289,26 @@ let view model dispatch =
                         ]
                     ]
                 | None -> ()
-            | None -> ()
+
+                match model.ActionSetting.CharacteristicType with
+                | Some characteristicType ->
+                    let ai = accessory.accessoryInformation
+                    let ch =
+                        accessory.serviceCharacteristics
+                        |> Array.find (fun x -> x.``type`` = characteristicType)
+
+                    details [Class "message"] [
+                        summary [] [str "More Info"]
+                        h4 [] [str "Accessory Information"]
+                        p [] [
+                            str "Manufacturer: "; str ai.Manufacturer; br []
+                            str "Model: "; str ai.Model]
+                        h4 [] [str "Service Characteristics"]
+                        p [] [
+                            str "Service Type: "; str ch.serviceType; br []
+                            str "Service Name: "; str ch.serviceName; br []
+                            str "Description: "; str ch.description]
+                    ]
+                | None -> ()
+            | _ -> ()
     ]

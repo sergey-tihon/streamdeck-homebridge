@@ -105,9 +105,9 @@ type Event =
         /// Event name.
         event: string
         /// An opaque value identifying the instance's action. You will need to pass this opaque value to several APIs like the setTitle API.
-        context: int
+        context: string
         /// An opaque value identifying the device.
-        device: int
+        device: string
         /// A json object.
         payload: obj
     }

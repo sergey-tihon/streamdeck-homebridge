@@ -6,8 +6,13 @@ open StreamDeck.SDK.Dto
 open StreamDeck.SDK.Plugin
 open StreamDeck.SDK.PropertyInspector
 
+open Elmish
+open Elmish.Navigation
+open Elmish.HMR
+open Elmish.Debug
 
-let plugin :MailboxProcessor<PluginIn_Events> = 
+
+let createPluginAgent() :MailboxProcessor<PluginIn_Events> = 
     MailboxProcessor.Start(fun inbox->
         let rec idle() = async {
             let! msg = inbox.Receive()
@@ -29,11 +34,25 @@ let plugin :MailboxProcessor<PluginIn_Events> =
         idle()
     )
 
-let pi :MailboxProcessor<PiIn_Events> = 
+let createPiAgent (dispatch: PI.PiMsg -> unit) :MailboxProcessor<PiIn_Events> = 
     MailboxProcessor.Start(fun inbox->
         let rec loop() = async{
             let! msg = inbox.Receive()
             console.log($"PI message is: %A{msg}", msg)
+
+            match msg with
+            | PiIn_Connected(startArgs, replyAgent) ->
+                replyAgent.Post <| PiOut_GetGlobalSettings
+                dispatch <| PI.PiConnected(startArgs, replyAgent)
+            | PiIn_DidReceiveSettings(event, payload) ->
+                Domain.tryParse<Domain.ToggleSetting>(payload.settings)
+                |> Option.iter (PI.ActionSettingReceived >> dispatch)
+            | PiIn_DidReceiveGlobalSettings (settings) ->
+                Domain.tryParse<Domain.GlobalSettings>(settings)
+                |> Option.iter (PI.GlobalSettingsReceived >> dispatch)
+            | PiIn_SendToPropertyInspector _ -> 
+                ()
+
             return! loop()
         }
         loop()
@@ -60,17 +79,22 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
     }
     match inMessageType with
     | "registerPlugin" ->
-        connectPlugin args plugin
+        let agent = createPluginAgent()
+        connectPlugin args agent
     | "registerPropertyInspector" ->
-        connectPropertyInspector args pi
+        let subcribe model =
+            let sub (dispatch: PI.PiMsg -> unit) =
+                let agent = createPiAgent dispatch
+                connectPropertyInspector args agent
+            Cmd.ofSub sub
+
+        Program.mkProgram PI.init PI.update PI.view
+        |> Program.withSubscription subcribe
+        |> Program.withReactBatched "elmish-app"
+        |> Program.run
     | _ -> 
         console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
 
-
-open Elmish
-open Elmish.Navigation
-open Elmish.HMR
-open Elmish.Debug
 
 let startPropertyInspectorApp() =
     Program.mkProgram PI.init PI.update PI.view

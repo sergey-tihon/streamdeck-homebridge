@@ -34,8 +34,8 @@ let createWebSocket inPort =
     websocket
 
 let sendJson (websocket:WebSocket) (o:obj) =
-    JSON.stringify o
-    |> websocket.send
+    let data = JSON.stringify o
+    websocket.send data
 
 let parseJson (o:obj) =
     JSON.parse(o :?> string)
