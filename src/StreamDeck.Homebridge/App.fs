@@ -16,20 +16,50 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
     MailboxProcessor.Start(fun inbox->
         let rec idle() = async {
             let! msg = inbox.Receive()
-            console.log($"Plugin message is: %A{msg}", msg)
             match msg with
             | PluginIn_Connected(startArgs, replyAgent) ->
-                return! loop startArgs replyAgent
-            | _ -> return! idle()
+                replyAgent.Post (PluginOut_GetGlobalSettings startArgs.UUID)
+                return! loop startArgs replyAgent None
+            | _ -> 
+                console.warn($"Idle plugin agent received unexpected message %A{msg}", msg)
+                return! idle()
         }
-        and loop startArgs replyAgent = async {
+        and loop startArgs replyAgent globalSetting = async {
             let! msg = inbox.Receive()
             console.log($"Plugin message is: %A{msg}", msg)
             match msg with
+            | PluginIn_DidReceiveGlobalSettings settings ->
+                let settings =  Domain.tryParse<Domain.GlobalSettings>(settings)
+                return! loop startArgs replyAgent settings
             | PluginIn_KeyUp(event, payload) ->
-                replyAgent.Post <| PluginOut_OpenUrl "https://www.elgato.com/en"
-            | _ -> ()
-            return! loop startArgs replyAgent
+                let onError (message:string) = 
+                    console.warn(message)
+                    replyAgent.Post <| PluginOut_LogMessage message
+                    replyAgent.Post <| PluginOut_ShowAlert event.context
+
+                let actionSettings = Domain.tryParse<Domain.ToggleSetting>(payload.settings)
+                match globalSetting, actionSettings with
+                | Some(serverInfo), Some({ AccessoryId = Some(accessoryId); CharacteristicType = Some(characteristicType)}) ->
+                    match! Client.authenticate serverInfo with
+                    | Ok authInfo ->
+                        let! accessory = Client.getAccessory serverInfo.Host authInfo accessoryId
+                        match accessory with
+                        | Some(accessory) ->
+                            let currentValue = accessory |> PI.getIntValue characteristicType
+                            let targetValue = 1 - currentValue
+                            let! accessory' = Client.setAccessoryCharacteristic serverInfo.Host authInfo accessoryId characteristicType targetValue
+                            match accessory' with
+                            | Some(accessory') ->
+                                let currentValue = accessory' |> PI.getIntValue characteristicType
+                                replyAgent.Post <| PluginOut_SetState (event.context, currentValue) 
+                            | None -> onError $"Cannot toggle characteristic '{characteristicType}' of accessory '{accessoryId}'"
+                        | None -> onError $"Cannot find accessory by id '{accessoryId}'"
+                    | Error e -> onError $"Authentication issue: ${e}"
+                | _ ->  onError "Action is not properly configured"
+
+                return! loop startArgs replyAgent globalSetting
+            | _ ->
+                return! loop startArgs replyAgent globalSetting
         }
         idle()
     )

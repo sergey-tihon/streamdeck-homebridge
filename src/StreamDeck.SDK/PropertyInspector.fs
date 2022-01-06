@@ -31,8 +31,7 @@ and PiOut_Events =
     | PiOut_SendToPlugin of payload:obj
 
 let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<PiOut_Events> = 
-    let context = args.UUID
-    let action = args.ActionInfo.Value.action
+    let inPropertyInspectorUUID = args.UUID
     MailboxProcessor.Start(fun inbox ->
         let sendJson (o:obj) = Utils.sendJson websocket o
         let rec loop() = async{
@@ -42,24 +41,28 @@ let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<Pi
             | PiOut_SetSettings payload ->
                 sendJson {|
                     event = "setSettings"
-                    context = context
+                    // An opaque value identifying the Property Inspector. This value is received by the Property Inspector as parameter of the connectElgatoStreamDeckSocket function.
+                    context = inPropertyInspectorUUID
                     payload = payload
                 |}
             | PiOut_GetSettings ->
                 sendJson {|
                     event = "getSettings"
-                    context = context
+                    // An opaque value identifying the Property Inspector. This value is received by the Property Inspector as parameter of the connectElgatoStreamDeckSocket function.
+                    context = inPropertyInspectorUUID
                 |}
             | PiOut_SetGlobalSettings payload ->
                 sendJson {|
                     event = "setGlobalSettings"
-                    context = context
+                    // An opaque value identifying the Property Inspector (inPropertyInspectorUUID). This value is received during the Registration procedure.
+                    context = inPropertyInspectorUUID
                     payload = payload
                 |}
             | PiOut_GetGlobalSettings ->
                 sendJson {|
                     event = "getGlobalSettings"
-                    context = context
+                    // An opaque value identifying the Property Inspector (inPropertyInspectorUUID). This value is received during the Registration procedure.
+                    context = inPropertyInspectorUUID
                 |}
             | PiOut_OpenUrl url ->
                 sendJson {|
@@ -77,9 +80,10 @@ let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<Pi
                 |}
             | PiOut_SendToPlugin payload ->
                 sendJson {|
-                    action = action
+                    action = args.ActionInfo.Value.action
                     event = "sendToPlugin"
-                    context = context
+                    // An opaque value identifying the Property Inspector. This value is received by the Property Inspector as parameter of the connectElgatoStreamDeckSocket function.
+                    context = inPropertyInspectorUUID
                     payload = payload
                 |}
             return! loop()
