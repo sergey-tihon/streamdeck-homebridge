@@ -9,6 +9,7 @@ open StreamDeck.SDK.PiModel
 
 type PiModel =
     { 
+        IsDevMode: bool
         ReplyAgent: MailboxProcessor<PiOut_Events> option
         ServerInfo: Domain.GlobalSettings
         AuthInfo: Result<Client.AuthResult, string>
@@ -33,8 +34,9 @@ type PiMsg =
     | ToggleCharacteristic
     | UpdateAccessory of accessory: Client.AccessoryDetails
 
-let init () =
+let init isDevMode = fun () ->
     let state = {
+        IsDevMode = isDevMode
         ReplyAgent = None
         ServerInfo = {
             Host = "http://192.168.0.213:8581"
@@ -278,8 +280,8 @@ let view model dispatch =
                             ]
                     ]
                 ]
-                match model.ActionSetting.CharacteristicType with
-                | Some _ ->
+                match model.IsDevMode, model.ActionSetting.CharacteristicType with
+                | true, Some _ ->
                     div [Class "sdpi-item"] [
                         button [
                             Class "sdpi-item-value"; 
@@ -288,7 +290,7 @@ let view model dispatch =
                             str "Test configuration (Apply)"
                         ]
                     ]
-                | None -> ()
+                | _ -> ()
 
                 match model.ActionSetting.CharacteristicType with
                 | Some characteristicType ->

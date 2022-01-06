@@ -118,7 +118,7 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
                 connectPropertyInspector args agent
             Cmd.ofSub sub
 
-        Program.mkProgram PI.init PI.update PI.view
+        Program.mkProgram (PI.init false) PI.update PI.view
         |> Program.withSubscription subcribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
@@ -127,7 +127,7 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
 
 
 let startPropertyInspectorApp() =
-    Program.mkProgram PI.init PI.update PI.view
+    Program.mkProgram (PI.init true) PI.update PI.view
     #if DEBUG
     |> Program.withDebugger
     #endif
