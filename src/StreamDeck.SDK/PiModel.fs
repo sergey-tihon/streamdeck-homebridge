@@ -92,6 +92,8 @@ let createReplyAgent (args:StartArgs) (websocket:WebSocket) :MailboxProcessor<Pi
     )
 
 let connectPropertyInspector (args:StartArgs) (agent:MailboxProcessor<PiIn_Events>) =
+    Utils.addDynamicStyles args.ApplicationInfo.colors
+
     let websocket = Utils.createWebSocket args.Port
     let replyAgent = createReplyAgent args websocket
 

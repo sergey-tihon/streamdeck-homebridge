@@ -4,8 +4,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Utils.fs" />
     <Compile Include="Dto.fs" />
+    <Compile Include="Utils.fs" />
     <Compile Include="PluginModel.fs" />
     <Compile Include="PiModel.fs" />
   </ItemGroup>
