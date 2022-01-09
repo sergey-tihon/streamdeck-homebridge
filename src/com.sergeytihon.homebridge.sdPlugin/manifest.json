@@ -1,21 +1,21 @@
 {
     "Actions": [
         {
-            "Icon": "resources/actions/toggle-off",
-            "Name": "Toggle Accessory",
+            "Icon": "resources/actions/switch-off",
+            "Name": "Switch",
             "States": [
                 {
-                    "Image": "resources/actions/toggle-off",
+                    "Image": "resources/actions/switch-off",
                     "Name": "Off"
                 },
                 {
-                    "Image": "resources/actions/toggle-on",
+                    "Image": "resources/actions/switch-on",
                     "Name": "On"
                 }
             ],
             "SupportedInMultiActions": true,
-            "Tooltip": "Toggle accessory (Turn on or off).",
-            "UUID": "com.sergeytihon.homebridge.toggle"
+            "Tooltip": "Switch accessory characteristic (Turn on or off).",
+            "UUID": "com.sergeytihon.homebridge.switch"
         }
     ],
     "SDKVersion": 2,

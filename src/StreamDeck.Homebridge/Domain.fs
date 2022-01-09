@@ -7,7 +7,7 @@ type GlobalSettings =
         Password: string
     }
 
-type ToggleSetting =
+type SwitchSetting =
     {
         AccessoryId: string option
         CharacteristicType: string option

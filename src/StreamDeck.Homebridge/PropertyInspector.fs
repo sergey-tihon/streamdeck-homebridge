@@ -15,13 +15,13 @@ type PiModel =
         AuthInfo: Result<Client.AuthResult, string>
         Accessories: Map<string, Client.AccessoryDetails>
         Layout: Client.RoomLayout[]
-        ActionSetting: Domain.ToggleSetting
+        ActionSetting: Domain.SwitchSetting
     }
 
 type PiMsg =
     | PiConnected of startArgs:StartArgs * replyAgent:MailboxProcessor<PiOut_Events>
     | GlobalSettingsReceived of Domain.GlobalSettings
-    | ActionSettingReceived of Domain.ToggleSetting
+    | ActionSettingReceived of Domain.SwitchSetting
 
     | UpdateServerInfo of Domain.GlobalSettings
     | Login of manual:bool
@@ -81,7 +81,7 @@ let update (msg:PiMsg) (model:PiModel) =
         let model' = 
             startArgs.ActionInfo
             |> Option.map (fun x -> x.payload.settings)
-            |> Option.bind (Domain.tryParse<Domain.ToggleSetting>)
+            |> Option.bind (Domain.tryParse<Domain.SwitchSetting>)
             |>  function
                 | Some(x) -> { model' with ActionSetting = x }
                 | None -> model'

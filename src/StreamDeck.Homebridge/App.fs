@@ -37,7 +37,7 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                     replyAgent.Post <| PluginOut_LogMessage message
                     replyAgent.Post <| PluginOut_ShowAlert event.context
 
-                let actionSettings = Domain.tryParse<Domain.ToggleSetting>(payload.settings)
+                let actionSettings = Domain.tryParse<Domain.SwitchSetting>(payload.settings)
                 match globalSetting, actionSettings with
                 | Some(serverInfo), Some({ AccessoryId = Some(accessoryId); CharacteristicType = Some(characteristicType)}) ->
                     match! Client.authenticate serverInfo with
@@ -75,7 +75,7 @@ let createPiAgent (dispatch: PI.PiMsg -> unit) :MailboxProcessor<PiIn_Events> =
                 replyAgent.Post <| PiOut_GetGlobalSettings
                 dispatch <| PI.PiConnected(startArgs, replyAgent)
             | PiIn_DidReceiveSettings(event, payload) ->
-                Domain.tryParse<Domain.ToggleSetting>(payload.settings)
+                Domain.tryParse<Domain.SwitchSetting>(payload.settings)
                 |> Option.iter (PI.ActionSettingReceived >> dispatch)
             | PiIn_DidReceiveGlobalSettings (settings) ->
                 Domain.tryParse<Domain.GlobalSettings>(settings)
