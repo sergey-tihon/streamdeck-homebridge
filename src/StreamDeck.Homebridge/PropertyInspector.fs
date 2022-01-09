@@ -132,7 +132,6 @@ let update (msg:PiMsg) (model:PiModel) =
                                 if accessory'.serviceCharacteristics.Length > 0
                                 then Some accessory' else None
                             )
-                        console.warn("!!!")
                         dispatch <| SetData (accessories, layout)
                     | _ -> ()
                 | _ -> ()

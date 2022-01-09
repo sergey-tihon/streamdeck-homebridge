@@ -77,6 +77,15 @@ and AccessoryInfo =
         customName: string option
     }
 
+type ConfigEditorInfo = {
+    bridge: BridgeInfo
+}
+and BridgeInfo = {
+    name: string
+    username: string
+    port: int
+    pin: string
+}
 
 let inline private sendWithAuth (auth:AuthResult) (req:HttpRequest) =
     req
@@ -111,6 +120,14 @@ let authenticate (serverInfo:Domain.GlobalSettings) =
             if responce.statusCode = 201 then
                 Json.tryParseAs<AuthResult> responce.responseText
             else Error ($"Unsuccessful login. {responce.responseText}")
+    }
+
+let getConfigEditorInfo host (auth:AuthResult) = 
+    async {
+        let! responce = 
+            Http.request $"%s{host}/api/config-editor"
+            |> sendWithAuth auth
+        return parseResp<ConfigEditorInfo> 200 responce
     }
 
 let getAccessories host (auth:AuthResult) = 

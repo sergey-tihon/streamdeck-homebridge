@@ -13,6 +13,7 @@
                     "Name": "On"
                 }
             ],
+            "SupportedInMultiActions": true,
             "Tooltip": "Toggle accessory (Turn on or off).",
             "UUID": "com.sergeytihon.homebridge.toggle"
         }
