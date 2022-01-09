@@ -38,7 +38,7 @@ Target.create "Clean" (fun _ ->
 )
 
 Target.create "Build" (fun _ ->
-    Shell.copyDir $"bin/{name}" $"src/{name}" (fun _ -> true)
+    Shell.copyDir $"bin/{name}" $"src/{name}" (fun s -> not <| s.Contains("/js/"))
     Shell.Exec("npm", "run build") 
     |>  function
         | 0 -> ()

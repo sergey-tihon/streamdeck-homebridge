@@ -5,7 +5,7 @@ NUGET
     Fable.Browser.Blob (1.1.4)
       Fable.Core (>= 3.0)
       FSharp.Core (>= 4.7.2)
-    Fable.Browser.Dom (2.8)
+    Fable.Browser.Dom (2.9)
       Fable.Browser.Blob (>= 1.1.4)
       Fable.Browser.Event (>= 1.4.6)
       Fable.Browser.WebStorage (>= 1.0.4)
@@ -72,7 +72,7 @@ NUGET
       Fable.Parsimmon (>= 4.0)
       FSharp.Core (>= 4.7)
     FSharp.Core (6.0.1)
-    Thoth.Json (6.0)
+    Thoth.Json (7.0)
       Fable.Core (>= 3.1.6)
       FSharp.Core (>= 4.7.2)
 HTTP
