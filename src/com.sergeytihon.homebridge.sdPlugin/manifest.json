@@ -18,11 +18,11 @@
             "UUID": "com.sergeytihon.homebridge.switch"
         },
         {
-            "Icon": "resources/actions/config",
+            "Icon": "resources/pluginIcon",
             "Name": "Open Homebridge UI",
             "States": [
                 {
-                    "Image": "resources/actions/config",
+                    "Image": "resources/pluginIcon",
                     "Name": "Website"
                 }
             ],
