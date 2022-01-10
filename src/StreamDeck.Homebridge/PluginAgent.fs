@@ -56,8 +56,10 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                                 let! accessory' = Client.setAccessoryCharacteristic serverInfo.Host authInfo accessoryId characteristicType targetValue
                                 match accessory' with
                                 | Some(accessory') ->
-                                    let currentValue = accessory' |> PiView.getIntValue characteristicType
-                                    replyAgent.Post <| PluginOut_SetState (event.context, currentValue) 
+                                    let currentValue' = accessory' |> PiView.getIntValue characteristicType
+                                    if currentValue = currentValue' 
+                                    then replyAgent.Post <| PluginOut_ShowAlert event.context
+                                    else replyAgent.Post <| PluginOut_SetState (event.context, currentValue') 
                                 | None -> onError $"Cannot toggle characteristic '{characteristicType}' of accessory '{accessoryId}'"
                             | None -> onError $"Cannot find accessory by id '{accessoryId}'"
                         | Error e -> onError $"Authentication issue: {e}"
