@@ -1,4 +1,4 @@
-module StreamDeck.Homebridge.PI
+module StreamDeck.Homebridge.PiView
 
 open Browser
 open Elmish

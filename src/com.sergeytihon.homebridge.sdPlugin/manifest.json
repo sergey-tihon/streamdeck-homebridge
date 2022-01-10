@@ -16,6 +16,19 @@
             "SupportedInMultiActions": true,
             "Tooltip": "Switch accessory characteristic (Turn on or off).",
             "UUID": "com.sergeytihon.homebridge.switch"
+        },
+        {
+            "Icon": "resources/actions/config",
+            "Name": "Open Homebridge UI",
+            "States": [
+                {
+                    "Image": "resources/actions/config",
+                    "Name": "Website"
+                }
+            ],
+            "SupportedInMultiActions": true,
+            "Tooltip": "Open Homebridge UI",
+            "UUID": "com.sergeytihon.homebridge.config-ui"
         }
     ],
     "SDKVersion": 2,
