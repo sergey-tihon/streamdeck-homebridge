@@ -1,5 +1,8 @@
 module StreamDeck.Homebridge.Domain
 
+open Fable.SimpleJson
+open StreamDeck.SDK
+
 type GlobalSettings = 
     {
         Host: string
@@ -13,7 +16,14 @@ type SwitchSetting =
         CharacteristicType: string option
     }
 
-open Fable.SimpleJson
+let (|ConfigAction|_|) (event:Dto.Event) =
+    if event.action = "com.sergeytihon.homebridge.config-ui"
+    then Some() else None
+
+let (|SwitchAction|_|) (event:Dto.Event) =
+    if event.action = "com.sergeytihon.homebridge.switch"
+    then Some() else None
+
 let inline tryParse<'t> (setting:obj) : 't option =
     SimpleJson.fromObjectLiteral setting
     |> Option.bind (fun json ->

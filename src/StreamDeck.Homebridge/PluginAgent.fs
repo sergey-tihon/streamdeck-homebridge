@@ -1,16 +1,7 @@
 module StreamDeck.Homebridge.PluginAgent
 
 open Browser.Dom
-open StreamDeck.SDK
 open StreamDeck.SDK.PluginModel
-
-let (|ConfigAction|_|) (event:Dto.Event) =
-    if event.action = "com.sergeytihon.homebridge.config-ui"
-    then Some() else None
-
-let (|SwitchAction|_|) (event:Dto.Event) =
-    if event.action = "com.sergeytihon.homebridge.switch"
-    then Some() else None
 
 let createPluginAgent() :MailboxProcessor<PluginIn_Events> = 
     MailboxProcessor.Start(fun inbox->
@@ -38,11 +29,11 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                     replyAgent.Post <| PluginOut_ShowAlert event.context
 
                 match event with
-                | ConfigAction ->
+                | Domain.ConfigAction ->
                     match globalSetting with
                     | Some(serverInfo) -> replyAgent.Post <| PluginOut_OpenUrl serverInfo.Host
                     | _ ->  onError "Global config is not provided"
-                | SwitchAction ->
+                | Domain.SwitchAction ->
                     let actionSettings = Domain.tryParse<Domain.SwitchSetting>(payload.settings)
                     match globalSetting, actionSettings with
                     | Some(serverInfo), Some({ AccessoryId = Some(accessoryId); CharacteristicType = Some(characteristicType)}) ->
