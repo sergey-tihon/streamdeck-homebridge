@@ -34,5 +34,5 @@ jobs:
     - uses: ncipollo/release-action@v1
       with:
         artifacts: "bin/*.streamDeckPlugin"
-        bodyFile: "body.md"
+        bodyFile: "RELEASE_NOTES.md"
         token: ${{ secrets.GITHUB_TOKEN }}
