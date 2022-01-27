@@ -10,7 +10,7 @@ type GlobalSettings =
         Password: string
     }
 
-type SwitchSetting =
+type ActionSetting =
     {
         AccessoryId: string option
         CharacteristicType: string option

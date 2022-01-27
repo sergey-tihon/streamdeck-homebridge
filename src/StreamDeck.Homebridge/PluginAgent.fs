@@ -34,7 +34,7 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                     | Some(serverInfo) -> replyAgent.Post <| PluginOut_OpenUrl serverInfo.Host
                     | _ ->  onError "Global config is not provided"
                 | Domain.SwitchAction ->
-                    let actionSettings = Domain.tryParse<Domain.SwitchSetting>(payload.settings)
+                    let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
                     match globalSetting, actionSettings with
                     | Some(serverInfo), Some({ AccessoryId = Some(accessoryId); CharacteristicType = Some(characteristicType)}) ->
                         match! Client.authenticate serverInfo with

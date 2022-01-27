@@ -15,7 +15,7 @@ let createPiAgent (dispatch: PiView.PiMsg -> unit) :MailboxProcessor<PiIn_Events
                 replyAgent.Post <| PiOut_GetGlobalSettings
                 dispatch <| PiView.PiConnected(startArgs, replyAgent)
             | PiIn_DidReceiveSettings(event, payload) ->
-                Domain.tryParse<Domain.SwitchSetting>(payload.settings)
+                Domain.tryParse<Domain.ActionSetting>(payload.settings)
                 |> Option.iter (PiView.ActionSettingReceived >> dispatch)
             | PiIn_DidReceiveGlobalSettings (settings) ->
                 Domain.tryParse<Domain.GlobalSettings>(settings)

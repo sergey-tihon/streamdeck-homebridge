@@ -13,15 +13,19 @@ type PiModel =
         ReplyAgent: MailboxProcessor<PiOut_Events> option
         ServerInfo: Domain.GlobalSettings
         AuthInfo: Result<Client.AuthResult, string>
+
         Accessories: Map<string, Client.AccessoryDetails>
+        SwitchAccessories: Map<string, Client.AccessoryDetails>
         Layout: Client.RoomLayout[]
-        ActionSetting: Domain.SwitchSetting
+        
+        ActionType: string option
+        ActionSetting: Domain.ActionSetting
     }
 
 type PiMsg =
     | PiConnected of startArgs:StartArgs * replyAgent:MailboxProcessor<PiOut_Events>
     | GlobalSettingsReceived of Domain.GlobalSettings
-    | ActionSettingReceived of Domain.SwitchSetting
+    | ActionSettingReceived of Domain.ActionSetting
 
     | UpdateServerInfo of Domain.GlobalSettings
     | Login of manual:bool
@@ -29,6 +33,7 @@ type PiMsg =
     | Logout
     | GetData
     | SetData of Client.AccessoryDetails[] * Client.RoomLayout[]
+    | SelectedActionType of actionType: string option
     | SelectedAccessory of uniqueId: string option
     | SelectedCharacteristic of characteristicType: string option
     | ToggleCharacteristic
@@ -45,7 +50,9 @@ let init isDevMode = fun () ->
         }
         AuthInfo = Error null
         Accessories = Map.empty
+        SwitchAccessories = Map.empty
         Layout = [||]
+        ActionType = None
         ActionSetting = {
             AccessoryId = None
             CharacteristicType = None
@@ -77,11 +84,15 @@ let sdDispatch msg (model:PiModel) =
 let update (msg:PiMsg) (model:PiModel) =
     match msg with
     | PiConnected (startArgs, replyAgent) -> 
-        let model' = { model with ReplyAgent = Some replyAgent}
+        let model' = { 
+            model with 
+                ReplyAgent = Some replyAgent
+                ActionType = startArgs.ActionInfo |> Option.map (fun x -> x.action)
+        }
         let model' = 
             startArgs.ActionInfo
             |> Option.map (fun x -> x.payload.settings)
-            |> Option.bind (Domain.tryParse<Domain.SwitchSetting>)
+            |> Option.bind (Domain.tryParse<Domain.ActionSetting>)
             |>  function
                 | Some(x) -> { model' with ActionSetting = x }
                 | None -> model'
@@ -124,26 +135,29 @@ let update (msg:PiMsg) (model:PiModel) =
                     let! layout = Client.getAccessoriesLayout model.ServerInfo.Host auth
                     let! data = Client.getAccessories model.ServerInfo.Host auth
                     match data, layout with
-                    | Some(data), Some(layout) ->
-                        let accessories = 
-                            data 
-                            |> Array.choose (fun accessory ->
-                                let accessory' = filterBoolCharacteristics accessory
-                                if accessory'.serviceCharacteristics.Length > 0
-                                then Some accessory' else None
-                            )
+                    | Some(accessories), Some(layout) ->
                         dispatch <| SetData (accessories, layout)
                     | _ -> ()
                 | _ -> ()
             } |> Async.StartImmediate
         model, Cmd.ofSub delayedCmd
     | SetData (accessories, layout) ->
+        let switchAccessories =  
+            accessories 
+            |> Array.choose (fun accessory ->
+                let accessory' = filterBoolCharacteristics accessory
+                if accessory'.serviceCharacteristics.Length > 0
+                then Some accessory' else None
+            )
         let state = { 
             model with
                 Accessories = accessories |> Array.map (fun x-> x.uniqueId,x) |> Map.ofArray
+                SwitchAccessories = switchAccessories |> Array.map (fun x-> x.uniqueId,x) |> Map.ofArray
                 Layout = layout
         }
         state, Cmd.none
+    | SelectedActionType actionType -> 
+        { model with ActionType = actionType}, Cmd.none
     | SelectedAccessory uniqueId ->
         let model' = { 
             model with 
@@ -181,10 +195,18 @@ let update (msg:PiMsg) (model:PiModel) =
         model, Cmd.ofSub delayedCmd
     | UpdateAccessory accessory ->
         let accessories' =
-            model.Accessories
+            model.SwitchAccessories
             |> Map.remove accessory.uniqueId
             |> Map.add accessory.uniqueId accessory
-        { model with Accessories = accessories' }, Cmd.none
+        { model with SwitchAccessories = accessories' }, Cmd.none
+
+
+let successConfirmation =
+    details [Class "message"] [
+        summary [Style [Color "green"]] [
+            str "Button successfully configured"
+        ]
+    ]
 
 let view model dispatch =
     div [Class "sdpi-wrapper"] [
@@ -231,87 +253,110 @@ let view model dispatch =
                     textarea [Type "textarea"; MaxLength 300] [str error]
                 ]
         | Ok _ ->
-            div [Class "sdpi-item"] [
-                div [Class "sdpi-item-label"] [str "Accessory"]
-                select [
-                    Class "sdpi-item-value select"
-                    Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
-                    OnChange (fun x -> 
-                        let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                        dispatch <| SelectedAccessory msg)
-                ] [
-                    option [Value "DEFAULT"] []
-                    for room in model.Layout do
-                        optgroup [Label room.name] [
-                            yield! room.services
-                            |> Array.choose (fun itemInfo -> 
-                                Map.tryFind itemInfo.uniqueId model.Accessories 
-                                |> Option.map (fun itemDetails ->
-                                    let name =  itemInfo.customName |> Option.defaultValue itemDetails.serviceName
-                                    name, itemDetails.uniqueId
-                                )
-                            )
-                            |> Array.sortBy fst
-                            |> Array.map (fun (name, uniqueId) -> 
-                                option [Value uniqueId] [str name]
-                            )
-                        ]
-                ]
-            ]
-            match model.ActionSetting.AccessoryId with
-            | Some(uniqueId) when model.Accessories.Count > 0 ->
-                let accessory = model.Accessories |> Map.find uniqueId
+            match model.ActionType with
+            | None ->
                 div [Class "sdpi-item"] [
-                    div [Class "sdpi-item-label"] [str "Characteristic"]
+                    div [Class "sdpi-item-label"] [str "Action Type"]
                     select [
                         Class "sdpi-item-value select"
-                        Value (model.ActionSetting.CharacteristicType |> Option.defaultValue "DEFAULT")
+                        Value (model.ActionType |> Option.defaultValue "DEFAULT")
                         OnChange (fun x -> 
                             let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                            dispatch <| SelectedCharacteristic msg)
+                            dispatch <| SelectedActionType msg)
                     ] [
                         option [Value "DEFAULT"] []
-                        let characteristics = accessory.serviceCharacteristics |> Array.sortBy (fun x -> x.``type``)
-                        for x in characteristics do
-                            option [Value x.``type``] [
-                                str x.description
+                        option [Value "com.sergeytihon.homebridge.config-ui"] [str "Config UI"]
+                        option [Value "com.sergeytihon.homebridge.switch"] [str "Switch"]
+                    ]
+                ]
+            | Some "com.sergeytihon.homebridge.config-ui" ->
+                successConfirmation
+            | Some "com.sergeytihon.homebridge.switch" ->
+                div [Class "sdpi-item"] [
+                    div [Class "sdpi-item-label"] [str "Accessory"]
+                    select [
+                        Class "sdpi-item-value select"
+                        Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
+                        OnChange (fun x -> 
+                            let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                            dispatch <| SelectedAccessory msg)
+                    ] [
+                        option [Value "DEFAULT"] []
+                        for room in model.Layout do
+                            optgroup [Label room.name] [
+                                yield! room.services
+                                |> Array.choose (fun itemInfo -> 
+                                    Map.tryFind itemInfo.uniqueId model.SwitchAccessories 
+                                    |> Option.map (fun itemDetails ->
+                                        let name =  itemInfo.customName |> Option.defaultValue itemDetails.serviceName
+                                        name, itemDetails.uniqueId
+                                    )
+                                )
+                                |> Array.sortBy fst
+                                |> Array.map (fun (name, uniqueId) -> 
+                                    option [Value uniqueId] [str name]
+                                )
                             ]
                     ]
                 ]
-                match model.IsDevMode, model.ActionSetting.CharacteristicType with
-                | true, Some _ ->
+                match model.ActionSetting.AccessoryId with
+                | Some(uniqueId) when model.SwitchAccessories.Count > 0 ->
+                    let accessory = model.SwitchAccessories |> Map.find uniqueId
                     div [Class "sdpi-item"] [
-                        button [
-                            Class "sdpi-item-value"; 
-                            OnClick (fun _ -> dispatch <| ToggleCharacteristic)
+                        div [Class "sdpi-item-label"] [str "Characteristic"]
+                        select [
+                            Class "sdpi-item-value select"
+                            Value (model.ActionSetting.CharacteristicType |> Option.defaultValue "DEFAULT")
+                            OnChange (fun x -> 
+                                let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                                dispatch <| SelectedCharacteristic msg)
                         ] [
-                            str "Test configuration (Apply)"
+                            option [Value "DEFAULT"] []
+                            let characteristics = accessory.serviceCharacteristics |> Array.sortBy (fun x -> x.``type``)
+                            for x in characteristics do
+                                option [Value x.``type``] [
+                                    str x.description
+                                ]
                         ]
                     ]
+                    match model.IsDevMode, model.ActionSetting.CharacteristicType with
+                    | true, Some _ ->
+                        div [Class "sdpi-item"] [
+                            button [
+                                Class "sdpi-item-value"; 
+                                OnClick (fun _ -> dispatch <| ToggleCharacteristic)
+                            ] [
+                                str "Test configuration (Apply)"
+                            ]
+                        ]
+                    | _ -> ()
+
+                    match model.ActionSetting.CharacteristicType with
+                    | Some characteristicType ->
+                        let ai = accessory.accessoryInformation
+                        let ch =
+                            accessory.serviceCharacteristics
+                            |> Array.find (fun x -> x.``type`` = characteristicType)
+
+                        successConfirmation
+                        details [Class "message"] [
+                            summary [] [str "More Info"]
+                            h4 [] [str "Accessory Information"]
+                            p [] [
+                                str "Human Type: "; str accessory.humanType
+                                str "Manufacturer: "; str ai.Manufacturer; br []
+                                str "Model: "; str ai.Model]
+                            h4 [] [str "Service Characteristics"]
+                            p [] [
+                                str "Service Type: "; str ch.serviceType; br []
+                                str "Service Name: "; str ch.serviceName; br []
+                                str "Description: "; str ch.description]
+                        ]
+                    | None -> ()
                 | _ -> ()
+            | Some ty -> 
+                p [] [str $"Unsupported action type {ty}"]
 
-                match model.ActionSetting.CharacteristicType with
-                | Some characteristicType ->
-                    let ai = accessory.accessoryInformation
-                    let ch =
-                        accessory.serviceCharacteristics
-                        |> Array.find (fun x -> x.``type`` = characteristicType)
-
-                    details [Class "message"] [
-                        summary [] [str "More Info"]
-                        h4 [] [str "Accessory Information"]
-                        p [] [
-                            str "Human Type: "; str accessory.humanType
-                            str "Manufacturer: "; str ai.Manufacturer; br []
-                            str "Model: "; str ai.Model]
-                        h4 [] [str "Service Characteristics"]
-                        p [] [
-                            str "Service Type: "; str ch.serviceType; br []
-                            str "Service Name: "; str ch.serviceName; br []
-                            str "Description: "; str ch.description]
-                    ]
-                | None -> ()
-            | _ -> ()
             div [Class "sdpi-item"; Type "button"] [
                 button [
                     Class "sdpi-item-value"; 
