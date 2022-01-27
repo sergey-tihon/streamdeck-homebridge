@@ -16,13 +16,14 @@ type ActionSetting =
         CharacteristicType: string option
     }
 
-let (|ConfigAction|_|) (event:Dto.Event) =
-    if event.action = "com.sergeytihon.homebridge.config-ui"
-    then Some() else None
+let CONFIG_ACTION_NAME = "com.sergeytihon.homebridge.config-ui"
+let SWITCH_ACTION_NAME = "com.sergeytihon.homebridge.switch"
 
-let (|SwitchAction|_|) (event:Dto.Event) =
-    if event.action = "com.sergeytihon.homebridge.switch"
-    then Some() else None
+let (|ConfigAction|_|) (action:string) =
+    if action = CONFIG_ACTION_NAME then Some() else None
+
+let (|SwitchAction|_|) (action:string) =
+    if action = SWITCH_ACTION_NAME then Some() else None
 
 let inline tryParse<'t> (setting:obj) : 't option =
     SimpleJson.fromObjectLiteral setting

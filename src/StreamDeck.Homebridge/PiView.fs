@@ -265,13 +265,13 @@ let view model dispatch =
                             dispatch <| SelectedActionType msg)
                     ] [
                         option [Value "DEFAULT"] []
-                        option [Value "com.sergeytihon.homebridge.config-ui"] [str "Config UI"]
-                        option [Value "com.sergeytihon.homebridge.switch"] [str "Switch"]
+                        option [Value Domain.CONFIG_ACTION_NAME] [str "Config UI"]
+                        option [Value Domain.SWITCH_ACTION_NAME] [str "Switch"]
                     ]
                 ]
-            | Some "com.sergeytihon.homebridge.config-ui" ->
+            | Some(Domain.ConfigAction) ->
                 successConfirmation
-            | Some "com.sergeytihon.homebridge.switch" ->
+            | Some(Domain.SwitchAction) ->
                 div [Class "sdpi-item"] [
                     div [Class "sdpi-item-label"] [str "Accessory"]
                     select [

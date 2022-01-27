@@ -28,7 +28,7 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                     replyAgent.Post <| PluginOut_LogMessage message
                     replyAgent.Post <| PluginOut_ShowAlert event.context
 
-                match event with
+                match event.action with
                 | Domain.ConfigAction ->
                     match globalSetting with
                     | Some(serverInfo) -> replyAgent.Post <| PluginOut_OpenUrl serverInfo.Host
