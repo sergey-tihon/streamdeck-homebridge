@@ -37,6 +37,14 @@ Target.create "Clean" (fun _ ->
     Shell.cleanDir bin
 )
 
+Target.create "NpmInstall" (fun _ ->
+    Shell.Exec("npm", "install") 
+    |>  function
+        | 0 -> ()
+        | code -> failwithf "build failed with code %d" code
+)
+
+
 Target.create "Build" (fun _ ->
     Shell.copyDir $"bin/{name}" $"src/{name}" (fun s -> not <| s.Contains("/js/"))
     Shell.Exec("npm", "run build") 
@@ -71,6 +79,7 @@ Target.create "All" ignore
 
 // Build order
 "Clean"
+    ==> "NpmInstall"
     ==> "Build"
     ==> "Release"
     ==> "All"
