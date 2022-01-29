@@ -146,7 +146,7 @@ let getAccessoriesLayout host (auth:AuthResult) =
         return parseResp<RoomLayout[]> 200 responce
     }
 
-let setAccessoryCharacteristic host (auth:AuthResult) (uniqueId:string) (characteristicType:string) (value:int) = 
+let setAccessoryCharacteristic host (auth:AuthResult) (uniqueId:string) (characteristicType:string) (value:obj) = 
     async {
         let body = Json.serialize {|
             characteristicType = characteristicType

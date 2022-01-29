@@ -18,6 +18,19 @@
             "UUID": "com.sergeytihon.homebridge.switch"
         },
         {
+            "Icon": "resources/actions/set",
+            "Name": "Set state",
+            "States": [
+                {
+                    "Image": "resources/actions/set",
+                    "Name": "Set"
+                }
+            ],
+            "SupportedInMultiActions": true,
+            "Tooltip": "Set accessory characteristic to predefined state.",
+            "UUID": "com.sergeytihon.homebridge.set"
+        },
+        {
             "Icon": "resources/pluginIcon",
             "Name": "Open Homebridge UI",
             "States": [
@@ -39,7 +52,7 @@
     "Name": "Homebridge",
     "Icon": "resources/pluginIcon",
     "URL": "https://github.com/sergey-tihon/streamdeck-homebridge",
-    "Version": "1.0.0",
+    "Version": "1.1.0",
     "Category": "Homebridge",
     "CategoryIcon": "resources/pluginIcon",
     "OS": [

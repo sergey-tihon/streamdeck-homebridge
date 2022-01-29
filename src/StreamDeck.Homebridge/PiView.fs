@@ -16,6 +16,7 @@ type PiModel =
 
         Accessories: Map<string, Client.AccessoryDetails>
         SwitchAccessories: Map<string, Client.AccessoryDetails>
+        RangeAccessories: Map<string, Client.AccessoryDetails>
         Layout: Client.RoomLayout[]
         
         ActionType: string option
@@ -36,6 +37,7 @@ type PiMsg =
     | SelectedActionType of actionType: string option
     | SelectedAccessory of uniqueId: string option
     | SelectedCharacteristic of characteristicType: string option
+    | ChangedTargetValue of targetValue: float option
     | ToggleCharacteristic
     | UpdateAccessory of accessory: Client.AccessoryDetails
 
@@ -44,37 +46,51 @@ let init isDevMode = fun () ->
         IsDevMode = isDevMode
         ReplyAgent = None
         ServerInfo = {
-            Host = "http://192.168.0.213:8581"
+            Host = "http://192.168.0.55:8581"
             UserName = "admin"
             Password = "admin"
         }
         AuthInfo = Error null
         Accessories = Map.empty
         SwitchAccessories = Map.empty
+        RangeAccessories = Map.empty
         Layout = [||]
         ActionType = None
         ActionSetting = {
             AccessoryId = None
             CharacteristicType = None
+            TargetValue = None
         }
     }
     state, Cmd.none
 
-let filterBoolCharacteristics (accessory:Client.AccessoryDetails) =
-    let characteristics =
-        accessory.serviceCharacteristics
-        |> Array.filter (fun x -> 
-            x.canWrite // we can modify value
-            && (x.format = "bool" // it is boolean
-                || (x.format = "uint8" && x.minValue = Some 0 && x.maxValue = Some 1)) // or behave like boolean
-        )
-    { accessory with serviceCharacteristics = characteristics }
+let filterCharacteristics filter (accessory:Client.AccessoryDetails) =
+    { 
+        accessory with 
+            serviceCharacteristics = 
+                accessory.serviceCharacteristics
+                |> Array.filter filter 
+    }
 
-let getIntValue characteristicType (accessory:Client.AccessoryDetails) = 
-    let characteristic = 
-        accessory.serviceCharacteristics 
-        |> Array.find (fun x -> x.``type`` = characteristicType)
-    characteristic.value :?> int
+let filterBoolCharacteristics =
+    filterCharacteristics (fun x -> 
+        x.canWrite // we can modify value
+        && (x.format = "bool" // it is boolean
+            || (x.format = "uint8" && x.minValue = Some 0 && x.maxValue = Some 1)) // or behave like boolean
+    )
+
+let filterRangeCharacteristics =
+    filterCharacteristics (fun x -> 
+        match x.canWrite, x.format, x.minValue, x.maxValue with
+        | true, "uint8", Some a, Some b when b-a > 1 -> true
+        | true, "float", Some a, Some b when b-a > 1 -> true
+        | true, "int", Some a, Some b when b-a > 1 -> true
+        | _ -> false
+    )
+
+let getCharacteristic characteristicType (accessory:Client.AccessoryDetails) =
+    accessory.serviceCharacteristics
+    |> Array.find (fun x -> x.``type`` = characteristicType)
 
 let sdDispatch msg (model:PiModel) =
     match model.ReplyAgent with
@@ -142,17 +158,20 @@ let update (msg:PiMsg) (model:PiModel) =
             } |> Async.StartImmediate
         model, Cmd.ofSub delayedCmd
     | SetData (accessories, layout) ->
-        let switchAccessories =  
+        let filterAccessories (filter:Client.AccessoryDetails -> Client.AccessoryDetails) =
             accessories 
             |> Array.choose (fun accessory ->
-                let accessory' = filterBoolCharacteristics accessory
+                let accessory' = filter accessory
                 if accessory'.serviceCharacteristics.Length > 0
                 then Some accessory' else None
             )
+        let toMap (accessories:Client.AccessoryDetails[]) = 
+            accessories |> Array.map (fun x-> x.uniqueId, x) |> Map.ofArray
         let state = { 
             model with
-                Accessories = accessories |> Array.map (fun x-> x.uniqueId,x) |> Map.ofArray
-                SwitchAccessories = switchAccessories |> Array.map (fun x-> x.uniqueId,x) |> Map.ofArray
+                Accessories = accessories |> toMap
+                SwitchAccessories = filterAccessories filterBoolCharacteristics |> toMap
+                RangeAccessories = filterAccessories filterRangeCharacteristics |> toMap
                 Layout = layout
         }
         state, Cmd.none
@@ -165,16 +184,34 @@ let update (msg:PiMsg) (model:PiModel) =
                     model.ActionSetting with 
                         AccessoryId = uniqueId
                         CharacteristicType = None
+                        TargetValue = None
                 }
         }
         model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
         model', Cmd.none
     | SelectedCharacteristic characteristicType ->
+        let targetValue =
+            match characteristicType, model.ActionSetting.AccessoryId with
+            | Some(characteristicType), Some(accessoryId) ->
+                let ch = model.Accessories |> Map.find accessoryId |> getCharacteristic characteristicType
+                Some (ch.value :?> float)
+            | _ -> None
         let model'= { 
             model with 
                 ActionSetting = {
                     model.ActionSetting with 
                         CharacteristicType = characteristicType
+                        TargetValue = targetValue
+                } 
+        }
+        model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
+        model', Cmd.none
+    | ChangedTargetValue targetValue ->
+        let model'= { 
+            model with 
+                ActionSetting = {
+                    model.ActionSetting with 
+                        TargetValue = targetValue
                 } 
         }
         model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
@@ -183,14 +220,25 @@ let update (msg:PiMsg) (model:PiModel) =
         let delayedCmd (dispatch: PiMsg -> unit) : unit =
             match model.AuthInfo, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
             | Ok(authInfo), Some(selectedAccessoryId), Some(characteristicType) ->
-                async {
-                    let! accessory = Client.getAccessory model.ServerInfo.Host authInfo selectedAccessoryId
-                    let currentValue = accessory.Value |> getIntValue characteristicType
-                    let targetValue = 1 - currentValue
-                    let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
-                    dispatch <| UpdateAccessory (filterBoolCharacteristics accessory'.Value)
-                    model |> sdDispatch (PiOut_SendToPlugin accessory'.Value)
-                } |> Async.StartImmediate
+                match model.ActionType with
+                | Some(Domain.SWITCH_ACTION_NAME) ->
+                    async {
+                        let! accessory = Client.getAccessory model.ServerInfo.Host authInfo selectedAccessoryId
+                        let ch = accessory.Value |> getCharacteristic characteristicType
+                        let currentValue = ch.value :?> int
+                        let targetValue = 1 - currentValue
+                        let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
+                        dispatch <| UpdateAccessory (filterBoolCharacteristics accessory'.Value)
+                        model |> sdDispatch (PiOut_SendToPlugin accessory'.Value)
+                    } |> Async.StartImmediate
+                | Some(Domain.SET_ACTION_NAME) -> 
+                    async {
+                        let targetValue = model.ActionSetting.TargetValue.Value
+                        let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
+                        dispatch <| UpdateAccessory (filterBoolCharacteristics accessory'.Value)
+                        model |> sdDispatch (PiOut_SendToPlugin accessory'.Value)
+                    } |> Async.StartImmediate
+                | _ -> console.error("Unexpected action ", model.ActionType)
             | _ -> ()
         model, Cmd.ofSub delayedCmd
     | UpdateAccessory accessory ->
@@ -200,15 +248,87 @@ let update (msg:PiMsg) (model:PiModel) =
             |> Map.add accessory.uniqueId accessory
         { model with SwitchAccessories = accessories' }, Cmd.none
 
-
-let successConfirmation =
-    details [Class "message"] [
-        summary [Style [Color "green"]] [
-            str "Button successfully configured"
-        ]
-    ]
-
 let view model dispatch =
+
+    let accessorySelector (accessories:Map<string, Client.AccessoryDetails>) = 
+        div [Class "sdpi-item"] [
+            div [Class "sdpi-item-label"] [str "Accessory"]
+            select [
+                Class "sdpi-item-value select"
+                Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
+                OnChange (fun x -> 
+                    let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                    dispatch <| SelectedAccessory msg)
+            ] [
+                option [Value "DEFAULT"] []
+                for room in model.Layout do
+                    optgroup [Label room.name] [
+                        yield! room.services
+                        |> Array.choose (fun itemInfo -> 
+                            Map.tryFind itemInfo.uniqueId accessories 
+                            |> Option.map (fun itemDetails ->
+                                let name =  itemInfo.customName |> Option.defaultValue itemDetails.serviceName
+                                name, itemDetails.uniqueId
+                            )
+                        )
+                        |> Array.sortBy fst
+                        |> Array.map (fun (name, uniqueId) -> 
+                            option [Value uniqueId] [str name]
+                        )
+                    ]
+            ]
+        ]
+    let characteristicSelector (accessory:Client.AccessoryDetails) =
+        div [Class "sdpi-item"] [
+            div [Class "sdpi-item-label"] [str "Characteristic"]
+            select [
+                Class "sdpi-item-value select"
+                Value (model.ActionSetting.CharacteristicType |> Option.defaultValue "DEFAULT")
+                OnChange (fun x -> 
+                    let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                    dispatch <| SelectedCharacteristic msg)
+            ] [
+                option [Value "DEFAULT"] []
+                let characteristics = accessory.serviceCharacteristics |> Array.sortBy (fun x -> x.``type``)
+                for x in characteristics do
+                    option [Value x.``type``] [
+                        str x.description
+                    ]
+            ]
+        ]
+    let testButton() =
+        div [Class "sdpi-item"] [
+            button [
+                Class "sdpi-item-value"; 
+                OnClick (fun _ -> dispatch <| ToggleCharacteristic)
+            ] [
+                str "Test configuration (Apply)"
+            ]
+        ]
+    let characteristicDetails characteristicType (accessory:Client.AccessoryDetails) =
+        let ai = accessory.accessoryInformation
+        let ch = accessory |> getCharacteristic characteristicType
+
+        details [Class "message"] [
+            summary [] [str "More Info"]
+            h4 [] [str "Accessory Information"]
+            p [] [
+                str "Human Type: "; str accessory.humanType
+                str "Manufacturer: "; str ai.Manufacturer; br []
+                str "Model: "; str ai.Model]
+            h4 [] [str "Service Characteristics"]
+            p [] [
+                str "Service Type: "; str ch.serviceType; br []
+                str "Service Name: "; str ch.serviceName; br []
+                str "Description: "; str ch.description]
+        ]
+    let successConfirmation =
+        details [Class "message"] [
+            summary [Style [Color "green"]] [
+                str "Button successfully configured"
+            ]
+        ]
+
     div [Class "sdpi-wrapper"] [
         match model.AuthInfo with
         | Error (error) ->
@@ -267,92 +387,54 @@ let view model dispatch =
                         option [Value "DEFAULT"] []
                         option [Value Domain.CONFIG_ACTION_NAME] [str "Config UI"]
                         option [Value Domain.SWITCH_ACTION_NAME] [str "Switch"]
+                        option [Value Domain.SET_ACTION_NAME] [str "Set state"]
                     ]
                 ]
-            | Some(Domain.ConfigAction) ->
+            | Some(Domain.CONFIG_ACTION_NAME) ->
                 successConfirmation
-            | Some(Domain.SwitchAction) ->
-                div [Class "sdpi-item"] [
-                    div [Class "sdpi-item-label"] [str "Accessory"]
-                    select [
-                        Class "sdpi-item-value select"
-                        Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
-                        OnChange (fun x -> 
-                            let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                            dispatch <| SelectedAccessory msg)
-                    ] [
-                        option [Value "DEFAULT"] []
-                        for room in model.Layout do
-                            optgroup [Label room.name] [
-                                yield! room.services
-                                |> Array.choose (fun itemInfo -> 
-                                    Map.tryFind itemInfo.uniqueId model.SwitchAccessories 
-                                    |> Option.map (fun itemDetails ->
-                                        let name =  itemInfo.customName |> Option.defaultValue itemDetails.serviceName
-                                        name, itemDetails.uniqueId
-                                    )
-                                )
-                                |> Array.sortBy fst
-                                |> Array.map (fun (name, uniqueId) -> 
-                                    option [Value uniqueId] [str name]
-                                )
-                            ]
-                    ]
-                ]
+            | Some(Domain.SWITCH_ACTION_NAME) ->
+                accessorySelector model.SwitchAccessories
                 match model.ActionSetting.AccessoryId with
                 | Some(uniqueId) when model.SwitchAccessories.Count > 0 ->
                     let accessory = model.SwitchAccessories |> Map.find uniqueId
-                    div [Class "sdpi-item"] [
-                        div [Class "sdpi-item-label"] [str "Characteristic"]
-                        select [
-                            Class "sdpi-item-value select"
-                            Value (model.ActionSetting.CharacteristicType |> Option.defaultValue "DEFAULT")
-                            OnChange (fun x -> 
-                                let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                                dispatch <| SelectedCharacteristic msg)
-                        ] [
-                            option [Value "DEFAULT"] []
-                            let characteristics = accessory.serviceCharacteristics |> Array.sortBy (fun x -> x.``type``)
-                            for x in characteristics do
-                                option [Value x.``type``] [
-                                    str x.description
-                                ]
-                        ]
-                    ]
-                    match model.IsDevMode, model.ActionSetting.CharacteristicType with
-                    | true, Some _ ->
-                        div [Class "sdpi-item"] [
-                            button [
-                                Class "sdpi-item-value"; 
-                                OnClick (fun _ -> dispatch <| ToggleCharacteristic)
-                            ] [
-                                str "Test configuration (Apply)"
-                            ]
-                        ]
-                    | _ -> ()
+                    characteristicSelector accessory
 
                     match model.ActionSetting.CharacteristicType with
                     | Some characteristicType ->
-                        let ai = accessory.accessoryInformation
-                        let ch =
-                            accessory.serviceCharacteristics
-                            |> Array.find (fun x -> x.``type`` = characteristicType)
-
+                        if model.IsDevMode then testButton()
                         successConfirmation
-                        details [Class "message"] [
-                            summary [] [str "More Info"]
-                            h4 [] [str "Accessory Information"]
-                            p [] [
-                                str "Human Type: "; str accessory.humanType
-                                str "Manufacturer: "; str ai.Manufacturer; br []
-                                str "Model: "; str ai.Model]
-                            h4 [] [str "Service Characteristics"]
-                            p [] [
-                                str "Service Type: "; str ch.serviceType; br []
-                                str "Service Name: "; str ch.serviceName; br []
-                                str "Description: "; str ch.description]
-                        ]
+                        characteristicDetails characteristicType accessory
                     | None -> ()
+                | _ -> ()
+            | Some(Domain.SET_ACTION_NAME) ->
+                accessorySelector model.RangeAccessories
+                match model.ActionSetting.AccessoryId with
+                | Some(uniqueId) when model.RangeAccessories.Count > 0 ->
+                    let accessory = model.RangeAccessories |> Map.find uniqueId
+                    characteristicSelector accessory
+
+                    match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
+                    | Some characteristicType, Some targetValue ->
+                        let ch = accessory |> getCharacteristic characteristicType
+                        match ch.minValue, ch.minStep, ch.maxValue with
+                        | Some minValue, Some minStep, Some maxValue ->
+                            div [Type "range"; Class "sdpi-item"] [
+                                div [Class "sdpi-item-label"] [str $"Target value ({targetValue})"]
+                                div [Class "sdpi-item-value"] [
+                                    span [Class "clickable"; Value minValue] [str $"{minValue}"]
+                                    input [Type "range"; Min minValue; Max maxValue; Step minStep; Value targetValue;
+                                        OnInput (fun x -> 
+                                            let payload = Some(float x.Value)
+                                            dispatch <| ChangedTargetValue payload)]
+                                    span [Class "clickable"; Value maxValue] [str $"{maxValue}"]
+                                ]
+                            ]
+
+                            if model.IsDevMode then testButton()
+                            successConfirmation
+                            characteristicDetails characteristicType accessory
+                        | _ -> ()
+                    | _ -> ()
                 | _ -> ()
             | Some ty -> 
                 p [] [str $"Unsupported action type {ty}"]

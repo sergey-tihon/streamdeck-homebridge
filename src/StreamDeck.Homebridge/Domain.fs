@@ -14,16 +14,12 @@ type ActionSetting =
     {
         AccessoryId: string option
         CharacteristicType: string option
+        TargetValue: float option
     }
 
-let CONFIG_ACTION_NAME = "com.sergeytihon.homebridge.config-ui"
-let SWITCH_ACTION_NAME = "com.sergeytihon.homebridge.switch"
-
-let (|ConfigAction|_|) (action:string) =
-    if action = CONFIG_ACTION_NAME then Some() else None
-
-let (|SwitchAction|_|) (action:string) =
-    if action = SWITCH_ACTION_NAME then Some() else None
+let [<Literal>]CONFIG_ACTION_NAME = "com.sergeytihon.homebridge.config-ui"
+let [<Literal>]SWITCH_ACTION_NAME = "com.sergeytihon.homebridge.switch"
+let [<Literal>]SET_ACTION_NAME    = "com.sergeytihon.homebridge.set"
 
 let inline tryParse<'t> (setting:obj) : 't option =
     SimpleJson.fromObjectLiteral setting
