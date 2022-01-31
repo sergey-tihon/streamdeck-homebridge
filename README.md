@@ -8,7 +8,7 @@ Plugin allows:
 
 ## Installation
 
-Download the `com.sergeytihon.homebridge.streamDeckPlugin` file from the [releases page](https://github.com/sergey-tihon/streamdeck-homebridge/releases), and double-click it.
+Install from [Stream Deck App Store](https://apps.elgato.com/plugins/com.sergeytihon.homebridge) or download the `com.sergeytihon.homebridge.streamDeckPlugin` file from the [releases page](https://github.com/sergey-tihon/streamdeck-homebridge/releases), and double-click it.
 
 ## Compatibility
 
