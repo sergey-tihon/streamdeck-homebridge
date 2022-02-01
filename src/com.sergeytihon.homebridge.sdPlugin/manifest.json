@@ -52,7 +52,7 @@
     "Name": "Homebridge",
     "Icon": "resources/pluginIcon",
     "URL": "https://github.com/sergey-tihon/streamdeck-homebridge",
-    "Version": "1.1.0",
+    "Version": "1.2.0",
     "Category": "Homebridge",
     "CategoryIcon": "resources/pluginIcon",
     "OS": [

@@ -1,3 +1,6 @@
+1.2.0 - 1 Fev 2022
+- Added support for accessories outside of room layout
+
 1.1.0 - 29 Jan 2022
 - Added `Set state` action
 

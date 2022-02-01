@@ -152,7 +152,34 @@ let update (msg:PiMsg) (model:PiModel) =
                     let! data = Client.getAccessories model.ServerInfo.Host auth
                     match data, layout with
                     | Some(accessories), Some(layout) ->
-                        dispatch <| SetData (accessories, layout)
+                        let devicesInLayout = 
+                            layout
+                            |> Array.collect (fun room -> 
+                                room.services |> Array.map (fun x -> x.uniqueId))
+                            |> Set.ofArray
+                        let missingDevices =
+                            accessories |> Array.filter (fun x -> devicesInLayout |> Set.contains x.uniqueId |> not)
+                        let layout' = 
+                            if missingDevices.Length = 0
+                            then layout
+                            else Array.append layout [|
+                                {
+                                    ``name`` = "Others"
+                                    services =
+                                        missingDevices
+                                        |> Array.map (fun x->
+                                            {
+                                                uniqueId = x.uniqueId
+                                                aid = x.aid
+                                                iid = x.iid
+                                                uuid = x.uuid
+                                                customName = Some x.serviceName
+                                            }
+                                        )
+                                }
+                            |]
+
+                        dispatch <| SetData (accessories, layout')
                     | _ -> ()
                 | _ -> ()
             } |> Async.StartImmediate
