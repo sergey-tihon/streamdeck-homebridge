@@ -14,6 +14,7 @@ type PiModel =
         ServerInfo: Domain.GlobalSettings
         AuthInfo: Result<Client.AuthResult, string>
 
+        IsLoading: bool
         Accessories: Map<string, Client.AccessoryDetails>
         SwitchAccessories: Map<string, Client.AccessoryDetails>
         RangeAccessories: Map<string, Client.AccessoryDetails>
@@ -51,6 +52,7 @@ let init isDevMode = fun () ->
             Password = "admin"
         }
         AuthInfo = Error null
+        IsLoading = false
         Accessories = Map.empty
         SwitchAccessories = Map.empty
         RangeAccessories = Map.empty
@@ -134,13 +136,18 @@ let update (msg:PiMsg) (model:PiModel) =
                 | _ -> ()
                 dispatch <| SetLoginResult result
             } |> Async.StartImmediate
-        model, Cmd.ofSub delayedCmd
+        { model with IsLoading = true }, Cmd.ofSub delayedCmd
     | SetLoginResult authInfo ->
         let cmd = 
             match authInfo with
             | Ok _ -> Cmd.ofMsg GetData
             | _ -> Cmd.none
-        { model with AuthInfo = authInfo}, cmd
+        let model' = { 
+            model with 
+                AuthInfo = authInfo
+                IsLoading = false
+        }
+        model', cmd
     | Logout ->
         { model with AuthInfo = Error null}, Cmd.none
     | GetData ->
@@ -183,7 +190,7 @@ let update (msg:PiMsg) (model:PiModel) =
                     | _ -> ()
                 | _ -> ()
             } |> Async.StartImmediate
-        model, Cmd.ofSub delayedCmd
+        { model with IsLoading = true }, Cmd.ofSub delayedCmd
     | SetData (accessories, layout) ->
         let filterAccessories (filter:Client.AccessoryDetails -> Client.AccessoryDetails) =
             accessories 
@@ -200,6 +207,7 @@ let update (msg:PiMsg) (model:PiModel) =
                 SwitchAccessories = filterAccessories filterBoolCharacteristics |> toMap
                 RangeAccessories = filterAccessories filterRangeCharacteristics |> toMap
                 Layout = layout
+                IsLoading = false
         }
         state, Cmd.none
     | SelectedActionType actionType -> 
@@ -357,6 +365,14 @@ let view model dispatch =
         ]
 
     div [Class "sdpi-wrapper"] [
+        match model.IsLoading with
+        | true ->
+            details [Class "message info"] [
+                summary [Style [Color "orange"]] [
+                    str "Waiting for Homebridge API response ..."
+                ]
+            ]
+        | false -> ()
         match model.AuthInfo with
         | Error (error) ->
             div [Class "sdpi-item"; Type "field"] [
