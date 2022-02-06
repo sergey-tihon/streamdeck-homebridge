@@ -41,20 +41,20 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                         | Ok authInfo ->
                             let! accessory = Client.getAccessory serverInfo.Host authInfo accessoryId
                             match accessory with
-                            | Some(accessory) ->
+                            | Ok accessory ->
                                 let ch = accessory |> PiView.getCharacteristic characteristicType
                                 let currentValue = ch.value :?> int
                                 let targetValue = 1 - currentValue
                                 let! accessory' = Client.setAccessoryCharacteristic serverInfo.Host authInfo accessoryId characteristicType targetValue
                                 match accessory' with
-                                | Some(accessory') ->
+                                | Ok accessory' ->
                                     let ch' = accessory' |> PiView.getCharacteristic characteristicType
                                     let currentValue' = ch'.value :?> int
                                     if currentValue = currentValue' 
                                     then replyAgent.Post <| PluginOut_ShowAlert event.context
                                     else replyAgent.Post <| PluginOut_SetState (event.context, currentValue') 
-                                | None -> onError $"Cannot toggle characteristic '{characteristicType}' of accessory '{accessoryId}'"
-                            | None -> onError $"Cannot find accessory by id '{accessoryId}'"
+                                | Error e -> onError e
+                            | Error e -> onError $"Cannot find accessory by id '{accessoryId}'. {e}"
                         | Error e -> onError $"Authentication issue: {e}"
                     | _ ->  onError "Action is not properly configured"
                 | Domain.SET_ACTION_NAME ->
@@ -65,13 +65,13 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                         | Ok authInfo ->
                             let! accessory = Client.setAccessoryCharacteristic serverInfo.Host authInfo accessoryId characteristicType targetValue
                             match accessory with
-                            | Some(accessory) ->
+                            | Ok accessory ->
                                 let ch = accessory |> PiView.getCharacteristic characteristicType
                                 let currentValue = ch.value :?> float
                                 if abs(targetValue - currentValue) > 1e-8
                                 then replyAgent.Post <| PluginOut_ShowAlert event.context
                                 else replyAgent.Post <| PluginOut_ShowOk event.context
-                            | None -> onError $"Cannot toggle characteristic '{characteristicType}' of accessory '{accessoryId}'"
+                            | Error e -> onError e
                         | Error e -> onError $"Authentication issue: {e}"
                     | _ ->  onError "Action is not properly configured"
                 | _ -> onError $"Action {event.action} is not yet supported"

@@ -158,7 +158,7 @@ let update (msg:PiMsg) (model:PiModel) =
                     let! layout = Client.getAccessoriesLayout model.ServerInfo.Host auth
                     let! data = Client.getAccessories model.ServerInfo.Host auth
                     match data, layout with
-                    | Some(accessories), Some(layout) ->
+                    | Ok(accessories), Ok(layout) ->
                         let devicesInLayout = 
                             layout
                             |> Array.collect (fun room -> 
@@ -259,19 +259,28 @@ let update (msg:PiMsg) (model:PiModel) =
                 | Some(Domain.SWITCH_ACTION_NAME) ->
                     async {
                         let! accessory = Client.getAccessory model.ServerInfo.Host authInfo selectedAccessoryId
-                        let ch = accessory.Value |> getCharacteristic characteristicType
-                        let currentValue = ch.value :?> int
-                        let targetValue = 1 - currentValue
-                        let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
-                        dispatch <| UpdateAccessory (filterBoolCharacteristics accessory'.Value)
-                        model |> sdDispatch (PiOut_SendToPlugin accessory'.Value)
+                        match accessory with
+                        | Ok accessory ->
+                            let ch = accessory |> getCharacteristic characteristicType
+                            let currentValue = ch.value :?> int
+                            let targetValue = 1 - currentValue
+                            let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
+                            match accessory' with 
+                            | Ok accessory' ->
+                                dispatch <| UpdateAccessory (filterBoolCharacteristics accessory')
+                                model |> sdDispatch (PiOut_SendToPlugin accessory')
+                            | Error e -> console.error(e)
+                        | Error e -> console.error(e)
                     } |> Async.StartImmediate
                 | Some(Domain.SET_ACTION_NAME) -> 
                     async {
                         let targetValue = model.ActionSetting.TargetValue.Value
                         let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
-                        dispatch <| UpdateAccessory (filterBoolCharacteristics accessory'.Value)
-                        model |> sdDispatch (PiOut_SendToPlugin accessory'.Value)
+                        match accessory' with
+                        | Ok accessory' ->
+                            dispatch <| UpdateAccessory (filterBoolCharacteristics accessory')
+                            model |> sdDispatch (PiOut_SendToPlugin accessory')
+                        | Error e -> console.error(e)
                     } |> Async.StartImmediate
                 | _ -> console.error("Unexpected action ", model.ActionType)
             | _ -> ()

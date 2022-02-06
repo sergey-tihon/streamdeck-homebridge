@@ -95,15 +95,6 @@ let inline private sendWithAuth (auth:AuthResult) (req:HttpRequest) =
     ]
     |> Http.send
 
-let inline private parseResp<'a> successCode (responce:HttpResponse) =
-    if responce.statusCode = successCode then
-        let resp = Json.tryParseAs<'a> responce.responseText
-        match resp with
-        | Ok data -> Some (data)
-        | _ -> None
-    else None
-
-
 let authenticate (serverInfo:Domain.GlobalSettings) = 
     async {
         let body = Json.serialize {|
@@ -115,6 +106,7 @@ let authenticate (serverInfo:Domain.GlobalSettings) =
             |> Http.method POST
             |> Http.content (BodyContent.Text body)
             |> Http.header (Headers.contentType "application/json")
+            |> Http.withTimeout 20_000
             |> Http.send
         return 
             if responce.statusCode = 201 then
@@ -127,23 +119,34 @@ let getConfigEditorInfo host (auth:AuthResult) =
         let! responce = 
             Http.request $"%s{host}/api/config-editor"
             |> sendWithAuth auth
-        return parseResp<ConfigEditorInfo> 200 responce
+        return 
+            if responce.statusCode = 200 then
+                Json.tryParseAs<ConfigEditorInfo> responce.responseText
+            else Error ($"Cannot get config editor info from {host}. {responce.responseText}")
     }
 
 let getAccessories host (auth:AuthResult) = 
     async {
         let! responce = 
             Http.request $"%s{host}/api/accessories"
+            |> Http.withTimeout 20_000
             |> sendWithAuth auth
-        return parseResp<AccessoryDetails[]> 200 responce
+        return 
+            if responce.statusCode = 200 then
+                Json.tryParseAs<AccessoryDetails[]> responce.responseText
+            else Error ($"Cannot get accessories list from {host}. {responce.responseText}")
     }
 
 let getAccessoriesLayout host (auth:AuthResult) =
     async {
         let! responce = 
             Http.request $"%s{host}/api/accessories/layout"
+            |> Http.withTimeout 20_000
             |> sendWithAuth auth
-        return parseResp<RoomLayout[]> 200 responce
+        return 
+            if responce.statusCode = 200 then
+                Json.tryParseAs<RoomLayout[]> responce.responseText
+            else Error ($"Cannot get room layout from {host}. {responce.responseText}")
     }
 
 let setAccessoryCharacteristic host (auth:AuthResult) (uniqueId:string) (characteristicType:string) (value:obj) = 
@@ -157,7 +160,10 @@ let setAccessoryCharacteristic host (auth:AuthResult) (uniqueId:string) (charact
             |> Http.method PUT
             |> Http.content (BodyContent.Text body)
             |> sendWithAuth auth
-        return parseResp<AccessoryDetails> 200 responce
+        return 
+            if responce.statusCode = 200 then
+                Json.tryParseAs<AccessoryDetails> responce.responseText
+            else Error ($"Cannot set accessory '{uniqueId}' characteristic '{characteristicType}' to '{value}'. {responce.responseText}")
     }
 
 let getAccessory host (auth:AuthResult) (uniqueId:string)= 
@@ -165,5 +171,8 @@ let getAccessory host (auth:AuthResult) (uniqueId:string)=
         let! responce = 
             Http.request $"%s{host}/api/accessories/{uniqueId}"
             |> sendWithAuth auth
-        return parseResp<AccessoryDetails> 200 responce
+        return 
+            if responce.statusCode = 200 then
+                Json.tryParseAs<AccessoryDetails> responce.responseText
+            else Error ($"Cannot get accessory by id '{uniqueId}'. {responce.responseText}")
     }
