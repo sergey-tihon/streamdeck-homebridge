@@ -106,7 +106,7 @@ let authenticate (serverInfo:Domain.GlobalSettings) =
             |> Http.method POST
             |> Http.content (BodyContent.Text body)
             |> Http.header (Headers.contentType "application/json")
-            |> Http.withTimeout 20_000
+            |> Http.withTimeout 5_000
             |> Http.send
         return 
             if responce.statusCode = 201 then

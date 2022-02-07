@@ -14,7 +14,7 @@ type PiModel =
         ServerInfo: Domain.GlobalSettings
         AuthInfo: Result<Client.AuthResult, string>
 
-        IsLoading: bool
+        IsLoading: Result<bool, string>
         Accessories: Map<string, Client.AccessoryDetails>
         SwitchAccessories: Map<string, Client.AccessoryDetails>
         RangeAccessories: Map<string, Client.AccessoryDetails>
@@ -35,12 +35,12 @@ type PiMsg =
     | Logout
     | GetData
     | SetData of Client.AccessoryDetails[] * Client.RoomLayout[]
+    | ResetLoading of error: string
     | SelectedActionType of actionType: string option
     | SelectedAccessory of uniqueId: string option
     | SelectedCharacteristic of characteristicType: string option
     | ChangedTargetValue of targetValue: float option
     | ToggleCharacteristic
-    | UpdateAccessory of accessory: Client.AccessoryDetails
 
 let init isDevMode = fun () ->
     let state = {
@@ -52,7 +52,7 @@ let init isDevMode = fun () ->
             Password = "admin"
         }
         AuthInfo = Error null
-        IsLoading = false
+        IsLoading = Ok false
         Accessories = Map.empty
         SwitchAccessories = Map.empty
         RangeAccessories = Map.empty
@@ -116,7 +116,7 @@ let update (msg:PiMsg) (model:PiModel) =
                 | None -> model'
         model', Cmd.none
     | GlobalSettingsReceived settings ->
-        let model'= { 
+        let model' = { 
             model with 
                 ServerInfo = settings 
                 AuthInfo = Error null
@@ -126,7 +126,12 @@ let update (msg:PiMsg) (model:PiModel) =
         let model' = { model with ActionSetting = settings }
         model', Cmd.none
     | UpdateServerInfo serverInfo ->
-        { model with ServerInfo = serverInfo}, Cmd.none
+        let model' = { 
+            model with 
+                ServerInfo = serverInfo
+                AuthInfo = Error null
+        }
+        model', Cmd.none
     | Login manual ->
         let delayedCmd (dispatch: PiMsg -> unit) : unit =
             async {
@@ -136,7 +141,7 @@ let update (msg:PiMsg) (model:PiModel) =
                 | _ -> ()
                 dispatch <| SetLoginResult result
             } |> Async.StartImmediate
-        { model with IsLoading = true }, Cmd.ofSub delayedCmd
+        { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
     | SetLoginResult authInfo ->
         let cmd = 
             match authInfo with
@@ -145,7 +150,7 @@ let update (msg:PiMsg) (model:PiModel) =
         let model' = { 
             model with 
                 AuthInfo = authInfo
-                IsLoading = false
+                IsLoading = Ok false
         }
         model', cmd
     | Logout ->
@@ -156,8 +161,8 @@ let update (msg:PiMsg) (model:PiModel) =
                 match model.AuthInfo with 
                 | Ok auth ->
                     let! layout = Client.getAccessoriesLayout model.ServerInfo.Host auth
-                    let! data = Client.getAccessories model.ServerInfo.Host auth
-                    match data, layout with
+                    let! accessories = Client.getAccessories model.ServerInfo.Host auth
+                    match accessories, layout with
                     | Ok(accessories), Ok(layout) ->
                         let devicesInLayout = 
                             layout
@@ -187,29 +192,24 @@ let update (msg:PiMsg) (model:PiModel) =
                             |]
 
                         dispatch <| SetData (accessories, layout')
-                    | _ -> ()
-                | _ -> ()
+                    | _ -> dispatch <| ResetLoading "Cannot get list of accessories and their room layout"
+                | _ -> dispatch <| ResetLoading "User is not authenticated"
             } |> Async.StartImmediate
-        { model with IsLoading = true }, Cmd.ofSub delayedCmd
+        { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
     | SetData (accessories, layout) ->
-        let filterAccessories (filter:Client.AccessoryDetails -> Client.AccessoryDetails) =
-            accessories 
-            |> Array.choose (fun accessory ->
-                let accessory' = filter accessory
-                if accessory'.serviceCharacteristics.Length > 0
-                then Some accessory' else None
-            )
         let toMap (accessories:Client.AccessoryDetails[]) = 
             accessories |> Array.map (fun x-> x.uniqueId, x) |> Map.ofArray
         let state = { 
             model with
                 Accessories = accessories |> toMap
-                SwitchAccessories = filterAccessories filterBoolCharacteristics |> toMap
-                RangeAccessories = filterAccessories filterRangeCharacteristics |> toMap
+                SwitchAccessories = accessories |> Array.map filterBoolCharacteristics |> toMap
+                RangeAccessories = accessories |> Array.map filterRangeCharacteristics |> toMap
                 Layout = layout
-                IsLoading = false
+                IsLoading = Ok false
         }
         state, Cmd.none
+    | ResetLoading error ->
+        { model with IsLoading = Error error}, Cmd.none
     | SelectedActionType actionType -> 
         { model with ActionType = actionType}, Cmd.none
     | SelectedAccessory uniqueId ->
@@ -266,9 +266,7 @@ let update (msg:PiMsg) (model:PiModel) =
                             let targetValue = 1 - currentValue
                             let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
                             match accessory' with 
-                            | Ok accessory' ->
-                                dispatch <| UpdateAccessory (filterBoolCharacteristics accessory')
-                                model |> sdDispatch (PiOut_SendToPlugin accessory')
+                            | Ok accessory' -> model |> sdDispatch (PiOut_SendToPlugin accessory')
                             | Error e -> console.error(e)
                         | Error e -> console.error(e)
                     } |> Async.StartImmediate
@@ -277,20 +275,12 @@ let update (msg:PiMsg) (model:PiModel) =
                         let targetValue = model.ActionSetting.TargetValue.Value
                         let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
                         match accessory' with
-                        | Ok accessory' ->
-                            dispatch <| UpdateAccessory (filterBoolCharacteristics accessory')
-                            model |> sdDispatch (PiOut_SendToPlugin accessory')
+                        | Ok accessory' -> model |> sdDispatch (PiOut_SendToPlugin accessory')
                         | Error e -> console.error(e)
                     } |> Async.StartImmediate
                 | _ -> console.error("Unexpected action ", model.ActionType)
             | _ -> ()
         model, Cmd.ofSub delayedCmd
-    | UpdateAccessory accessory ->
-        let accessories' =
-            model.SwitchAccessories
-            |> Map.remove accessory.uniqueId
-            |> Map.add accessory.uniqueId accessory
-        { model with SwitchAccessories = accessories' }, Cmd.none
 
 let view model dispatch =
 
@@ -310,14 +300,17 @@ let view model dispatch =
                         yield! room.services
                         |> Array.choose (fun itemInfo -> 
                             Map.tryFind itemInfo.uniqueId accessories 
-                            |> Option.map (fun itemDetails ->
-                                let name =  itemInfo.customName |> Option.defaultValue itemDetails.serviceName
-                                name, itemDetails.uniqueId
+                            |> Option.map (fun accessoryDetails ->
+                                let name =  itemInfo.customName |> Option.defaultValue accessoryDetails.serviceName
+                                name, accessoryDetails
                             )
                         )
                         |> Array.sortBy fst
-                        |> Array.map (fun (name, uniqueId) -> 
-                            option [Value uniqueId] [str name]
+                        |> Array.map (fun (name, accessoryDetails) -> 
+                            option [Value accessoryDetails.uniqueId; 
+                                    Disabled (accessoryDetails.serviceCharacteristics.Length = 0)] [
+                                str name
+                            ]
                         )
                     ]
             ]
@@ -375,13 +368,20 @@ let view model dispatch =
 
     div [Class "sdpi-wrapper"] [
         match model.IsLoading with
-        | true ->
+        | Error error -> 
+            details [Class "message caution"] [
+                summary [Style [Color "red"]] [
+                    str error
+                ]
+            ]
+        | Ok true ->
             details [Class "message info"] [
                 summary [Style [Color "orange"]] [
                     str "Waiting for Homebridge API response ..."
                 ]
             ]
-        | false -> ()
+        | Ok false -> ()
+
         match model.AuthInfo with
         | Error (error) ->
             div [Class "sdpi-item"; Type "field"] [
