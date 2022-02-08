@@ -359,142 +359,135 @@ let view model dispatch =
                 str "Service Name: "; str ch.serviceName; br []
                 str "Description: "; str ch.description]
         ]
-    let successConfirmation =
-        details [Class "message"] [
-            summary [Style [Color "green"]] [
-                str "Button successfully configured"
+    let message icon color message =
+        details [Class $"message {icon}"] [
+            summary [Style [Color color]] [
+                str message
             ]
         ]
+    let successConfirmation =
+        message "" "green" "Button successfully configured"
 
     div [Class "sdpi-wrapper"] [
         match model.IsLoading with
-        | Error error -> 
-            details [Class "message caution"] [
-                summary [Style [Color "red"]] [
-                    str error
-                ]
-            ]
-        | Ok true ->
-            details [Class "message info"] [
-                summary [Style [Color "orange"]] [
-                    str "Waiting for Homebridge API response ..."
-                ]
-            ]
-        | Ok false -> ()
+        | Ok true -> message "info" "orange" "Waiting for Homebridge API response ..."
+        | _ ->
+            match model.IsLoading with
+            | Error error -> message "caution" "red" error
+            | _ -> ()
 
-        match model.AuthInfo with
-        | Error (error) ->
-            div [Class "sdpi-item"; Type "field"] [
-                div [Class "sdpi-item-label"] [str "Server"]
-                input [
-                    Class "sdpi-item-value"
-                    Value model.ServerInfo.Host
-                    Placeholder "e.g. http://192.168.0.1:8581"
-                    Required true
-                    Pattern "http:\/\/\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{2,5}"
-                    OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Host = x.Value })
-                ]
-            ]
-            div [Class "sdpi-item"; Type "field"] [
-                div [Class "sdpi-item-label"] [str "UserName"]
-                input [
-                    Class "sdpi-item-value"
-                    Value model.ServerInfo.UserName
-                    Required true
-                    OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with UserName = x.Value })
-                ]
-            ]
-            div [Class "sdpi-item"; Type "password"] [
-                div [Class "sdpi-item-label"] [str "Password"]
-                input [
-                    Class "sdpi-item-value"
-                    Type "password"
-                    Value model.ServerInfo.Password
-                    Required true
-                    OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Password = x.Value })
-                ]
-            ]
-            div [Class "sdpi-item"; Type "button"] [
-                button [
-                    Class "sdpi-item-value"; 
-                    OnClick (fun _ -> dispatch <| Login true)
-                ] [ str "Login" ]
-            ]
-            if not <| System.String.IsNullOrEmpty(error) then
-                div [Class "sdpi-item"; Type "button"] [
-                    textarea [Type "textarea"; MaxLength 300] [str error]
-                ]
-        | Ok _ ->
-            match model.ActionType with
-            | None ->
-                div [Class "sdpi-item"] [
-                    div [Class "sdpi-item-label"] [str "Action Type"]
-                    select [
-                        Class "sdpi-item-value select"
-                        Value (model.ActionType |> Option.defaultValue "DEFAULT")
-                        OnChange (fun x -> 
-                            let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                            dispatch <| SelectedActionType msg)
-                    ] [
-                        option [Value "DEFAULT"] []
-                        option [Value Domain.CONFIG_ACTION_NAME] [str "Config UI"]
-                        option [Value Domain.SWITCH_ACTION_NAME] [str "Switch"]
-                        option [Value Domain.SET_ACTION_NAME] [str "Set state"]
+            match model.AuthInfo with
+            | Error (error) ->
+                if not <| System.String.IsNullOrEmpty(error) then 
+                    message "caution" "red" error
+
+                div [Class "sdpi-item"; Type "field"] [
+                    div [Class "sdpi-item-label"] [str "Server"]
+                    input [
+                        Class "sdpi-item-value"
+                        Value model.ServerInfo.Host
+                        Placeholder "e.g. http://192.168.0.1:8581"
+                        Required true
+                        Pattern "http:\/\/\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{2,5}"
+                        OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Host = x.Value })
                     ]
                 ]
-            | Some(Domain.CONFIG_ACTION_NAME) ->
-                successConfirmation
-            | Some(Domain.SWITCH_ACTION_NAME) ->
-                accessorySelector model.SwitchAccessories
-                match model.ActionSetting.AccessoryId with
-                | Some(uniqueId) when model.SwitchAccessories.Count > 0 ->
-                    let accessory = model.SwitchAccessories |> Map.find uniqueId
-                    characteristicSelector accessory
+                div [Class "sdpi-item"; Type "field"] [
+                    div [Class "sdpi-item-label"] [str "UserName"]
+                    input [
+                        Class "sdpi-item-value"
+                        Value model.ServerInfo.UserName
+                        Required true
+                        OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with UserName = x.Value })
+                    ]
+                ]
+                div [Class "sdpi-item"; Type "password"] [
+                    div [Class "sdpi-item-label"] [str "Password"]
+                    input [
+                        Class "sdpi-item-value"
+                        Type "password"
+                        Value model.ServerInfo.Password
+                        Required true
+                        OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Password = x.Value })
+                    ]
+                ]
+                div [Class "sdpi-item"; Type "button"] [
+                    button [
+                        Class "sdpi-item-value"; 
+                        OnClick (fun _ -> dispatch <| Login true)
+                    ] [ str "Login" ]
+                ]
+            | Ok _ ->
+                match model.ActionType with
+                | None ->
+                    div [Class "sdpi-item"] [
+                        div [Class "sdpi-item-label"] [str "Action Type"]
+                        select [
+                            Class "sdpi-item-value select"
+                            Value (model.ActionType |> Option.defaultValue "DEFAULT")
+                            OnChange (fun x -> 
+                                let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                                dispatch <| SelectedActionType msg)
+                        ] [
+                            option [Value "DEFAULT"] []
+                            option [Value Domain.CONFIG_ACTION_NAME] [str "Config UI"]
+                            option [Value Domain.SWITCH_ACTION_NAME] [str "Switch"]
+                            option [Value Domain.SET_ACTION_NAME] [str "Set state"]
+                        ]
+                    ]
+                | Some(Domain.CONFIG_ACTION_NAME) ->
+                    successConfirmation
+                | Some(Domain.SWITCH_ACTION_NAME) ->
+                    accessorySelector model.SwitchAccessories
+                    match model.ActionSetting.AccessoryId with
+                    | Some(uniqueId) when model.SwitchAccessories.Count > 0 ->
+                        let accessory = model.SwitchAccessories |> Map.find uniqueId
+                        characteristicSelector accessory
 
-                    match model.ActionSetting.CharacteristicType with
-                    | Some characteristicType ->
-                        if model.IsDevMode then testButton()
-                        successConfirmation
-                        characteristicDetails characteristicType accessory
-                    | None -> ()
-                | _ -> ()
-            | Some(Domain.SET_ACTION_NAME) ->
-                accessorySelector model.RangeAccessories
-                match model.ActionSetting.AccessoryId with
-                | Some(uniqueId) when model.RangeAccessories.Count > 0 ->
-                    let accessory = model.RangeAccessories |> Map.find uniqueId
-                    characteristicSelector accessory
-
-                    match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
-                    | Some characteristicType, Some targetValue ->
-                        let ch = accessory |> getCharacteristic characteristicType
-                        match ch.minValue, ch.minStep, ch.maxValue with
-                        | Some minValue, Some minStep, Some maxValue ->
-                            div [Type "range"; Class "sdpi-item"] [
-                                div [Class "sdpi-item-label"] [str $"Target value ({targetValue})"]
-                                div [Class "sdpi-item-value"] [
-                                    span [Class "clickable"; Value minValue] [str $"{minValue}"]
-                                    input [Type "range"; Min minValue; Max maxValue; Step minStep; Value targetValue;
-                                        OnInput (fun x -> 
-                                            let payload = Some(float x.Value)
-                                            dispatch <| ChangedTargetValue payload)]
-                                    span [Class "clickable"; Value maxValue] [str $"{maxValue}"]
-                                ]
-                            ]
-
+                        match model.ActionSetting.CharacteristicType with
+                        | Some characteristicType ->
                             if model.IsDevMode then testButton()
                             successConfirmation
                             characteristicDetails characteristicType accessory
+                        | None -> ()
+                    | _ -> ()
+                | Some(Domain.SET_ACTION_NAME) ->
+                    accessorySelector model.RangeAccessories
+                    match model.ActionSetting.AccessoryId with
+                    | Some(uniqueId) when model.RangeAccessories.Count > 0 ->
+                        let accessory = model.RangeAccessories |> Map.find uniqueId
+                        characteristicSelector accessory
+
+                        match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
+                        | Some characteristicType, Some targetValue ->
+                            let ch = accessory |> getCharacteristic characteristicType
+                            match ch.minValue, ch.minStep, ch.maxValue with
+                            | Some minValue, Some minStep, Some maxValue ->
+                                div [Type "range"; Class "sdpi-item"] [
+                                    div [Class "sdpi-item-label"] [str $"Target value ({targetValue})"]
+                                    div [Class "sdpi-item-value"] [
+                                        span [Class "clickable"; Value minValue] [str $"{minValue}"]
+                                        input [Type "range"; Min minValue; Max maxValue; Step minStep; Value targetValue;
+                                            OnInput (fun x -> 
+                                                let payload = Some(float x.Value)
+                                                dispatch <| ChangedTargetValue payload)]
+                                        span [Class "clickable"; Value maxValue] [str $"{maxValue}"]
+                                    ]
+                                ]
+
+                                if model.IsDevMode then testButton()
+                                successConfirmation
+                                characteristicDetails characteristicType accessory
+                            | _ -> ()
                         | _ -> ()
                     | _ -> ()
-                | _ -> ()
-            | Some ty -> 
-                p [] [str $"Unsupported action type {ty}"]
+                | Some ty -> 
+                    p [] [str $"Unsupported action type {ty}"]
 
-            div [Class "sdpi-item"; Type "button"] [
-                button [
-                    Class "sdpi-item-value"; 
-                    OnClick (fun _ -> dispatch <| Logout)
-                ] [ str "Logout" ]
-            ]
+                div [Class "sdpi-item"; Type "button"] [
+                    button [
+                        Class "sdpi-item-value"; 
+                        OnClick (fun _ -> dispatch <| Logout)
+                    ] [ str "Logout" ]
+                ]
     ]

@@ -111,7 +111,7 @@ let authenticate (serverInfo:Domain.GlobalSettings) =
         return 
             if responce.statusCode = 201 then
                 Json.tryParseAs<AuthResult> responce.responseText
-            else Error ($"Unsuccessful login. {responce.responseText}")
+            else Error ($"Unsuccessful login: Server is unavailable or login/password is incorrect. {responce.responseText}")
     }
 
 let getConfigEditorInfo host (auth:AuthResult) = 
