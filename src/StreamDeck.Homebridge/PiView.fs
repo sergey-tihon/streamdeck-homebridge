@@ -36,10 +36,10 @@ type PiMsg =
     | GetData
     | SetData of Client.AccessoryDetails[] * Client.RoomLayout[]
     | ResetLoading of error: string
-    | SelectedActionType of actionType: string option
-    | SelectedAccessory of uniqueId: string option
-    | SelectedCharacteristic of characteristicType: string option
-    | ChangedTargetValue of targetValue: float option
+    | SelectActionType of actionType: string option
+    | SelectAccessory of uniqueId: string option
+    | SelectCharacteristic of characteristicType: string option
+    | ChangeTargetValue of targetValue: float option
     | ToggleCharacteristic
 
 let init isDevMode = fun () ->
@@ -210,9 +210,9 @@ let update (msg:PiMsg) (model:PiModel) =
         state, Cmd.none
     | ResetLoading error ->
         { model with IsLoading = Error error}, Cmd.none
-    | SelectedActionType actionType -> 
+    | SelectActionType actionType -> 
         { model with ActionType = actionType}, Cmd.none
-    | SelectedAccessory uniqueId ->
+    | SelectAccessory uniqueId ->
         let model' = { 
             model with 
                 ActionSetting = {
@@ -224,7 +224,7 @@ let update (msg:PiMsg) (model:PiModel) =
         }
         model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
         model', Cmd.none
-    | SelectedCharacteristic characteristicType ->
+    | SelectCharacteristic characteristicType ->
         let targetValue =
             match characteristicType, model.ActionSetting.AccessoryId with
             | Some(characteristicType), Some(accessoryId) ->
@@ -241,7 +241,7 @@ let update (msg:PiMsg) (model:PiModel) =
         }
         model |> sdDispatch (PiOut_SetSettings model'.ActionSetting)
         model', Cmd.none
-    | ChangedTargetValue targetValue ->
+    | ChangeTargetValue targetValue ->
         let model'= { 
             model with 
                 ActionSetting = {
@@ -284,37 +284,52 @@ let update (msg:PiMsg) (model:PiModel) =
 
 let view model dispatch =
 
-    let accessorySelector (accessories:Map<string, Client.AccessoryDetails>) = 
-        div [Class "sdpi-item"] [
-            div [Class "sdpi-item-label"] [str "Accessory"]
-            select [
-                Class "sdpi-item-value select"
-                Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
-                OnChange (fun x -> 
-                    let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                    dispatch <| SelectedAccessory msg)
-            ] [
-                option [Value "DEFAULT"] []
-                for room in model.Layout do
-                    optgroup [Label room.name] [
-                        yield! room.services
-                        |> Array.choose (fun itemInfo -> 
-                            Map.tryFind itemInfo.uniqueId accessories 
-                            |> Option.map (fun accessoryDetails ->
-                                let name =  itemInfo.customName |> Option.defaultValue accessoryDetails.serviceName
-                                name, accessoryDetails
-                            )
-                        )
-                        |> Array.sortBy fst
-                        |> Array.map (fun (name, accessoryDetails) -> 
-                            option [Value accessoryDetails.uniqueId; 
-                                    Disabled (accessoryDetails.serviceCharacteristics.Length = 0)] [
-                                str name
-                            ]
-                        )
-                    ]
+    let accessorySelector (accessories:Map<string, Client.AccessoryDetails>) = [
+        match model.ActionSetting.AccessoryId with
+        | Some(uniqueId) when not <| accessories.ContainsKey(uniqueId) ->
+            details [Class $"message caution"] [
+                summary [Style [Color "red"]] [
+                    str "Configured device is no longer available on Homebridge. Please update Homebridge or Reset button config."
+                ]
             ]
-        ]
+            div [Class "sdpi-item"] [
+                button [
+                    Class "sdpi-item-value"; 
+                    OnClick (fun _ -> dispatch <| SelectAccessory None)
+                ] [ str "Reset button config" ]
+            ]
+        | _ ->
+            div [Class "sdpi-item"] [
+                div [Class "sdpi-item-label"] [str "Accessory"]
+                select [
+                    Class "sdpi-item-value select"
+                    Value (model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
+                    OnChange (fun x -> 
+                        let msg = if x.Value = "DEFAULT" then None else Some x.Value
+                        dispatch <| SelectAccessory msg)
+                ] [
+                    option [Value "DEFAULT"] []
+                    for room in model.Layout do
+                        optgroup [Label room.name] [
+                            yield! room.services
+                            |> Array.choose (fun itemInfo -> 
+                                Map.tryFind itemInfo.uniqueId accessories 
+                                |> Option.map (fun accessoryDetails ->
+                                    let name =  itemInfo.customName |> Option.defaultValue accessoryDetails.serviceName
+                                    name, accessoryDetails
+                                )
+                            )
+                            |> Array.sortBy fst
+                            |> Array.map (fun (name, accessoryDetails) -> 
+                                option [Value accessoryDetails.uniqueId; 
+                                        Disabled (accessoryDetails.serviceCharacteristics.Length = 0)] [
+                                    str name
+                                ]
+                            )
+                        ]
+                ]
+            ]
+    ]
     let characteristicSelector (accessory:Client.AccessoryDetails) =
         div [Class "sdpi-item"] [
             div [Class "sdpi-item-label"] [str "Characteristic"]
@@ -323,7 +338,7 @@ let view model dispatch =
                 Value (model.ActionSetting.CharacteristicType |> Option.defaultValue "DEFAULT")
                 OnChange (fun x -> 
                     let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                    dispatch <| SelectedCharacteristic msg)
+                    dispatch <| SelectCharacteristic msg)
             ] [
                 option [Value "DEFAULT"] []
                 let characteristics = accessory.serviceCharacteristics |> Array.sortBy (fun x -> x.``type``)
@@ -427,7 +442,7 @@ let view model dispatch =
                             Value (model.ActionType |> Option.defaultValue "DEFAULT")
                             OnChange (fun x -> 
                                 let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                                dispatch <| SelectedActionType msg)
+                                dispatch <| SelectActionType msg)
                         ] [
                             option [Value "DEFAULT"] []
                             option [Value Domain.CONFIG_ACTION_NAME] [str "Config UI"]
@@ -438,9 +453,9 @@ let view model dispatch =
                 | Some(Domain.CONFIG_ACTION_NAME) ->
                     successConfirmation
                 | Some(Domain.SWITCH_ACTION_NAME) ->
-                    accessorySelector model.SwitchAccessories
+                    yield! accessorySelector model.SwitchAccessories
                     match model.ActionSetting.AccessoryId with
-                    | Some(uniqueId) when model.SwitchAccessories.Count > 0 ->
+                    | Some(uniqueId) when model.SwitchAccessories.ContainsKey uniqueId ->
                         let accessory = model.SwitchAccessories |> Map.find uniqueId
                         characteristicSelector accessory
 
@@ -448,13 +463,13 @@ let view model dispatch =
                         | Some characteristicType ->
                             if model.IsDevMode then testButton()
                             successConfirmation
-                            characteristicDetails characteristicType accessory
+                            //characteristicDetails characteristicType accessory
                         | None -> ()
                     | _ -> ()
                 | Some(Domain.SET_ACTION_NAME) ->
-                    accessorySelector model.RangeAccessories
+                    yield! accessorySelector model.RangeAccessories
                     match model.ActionSetting.AccessoryId with
-                    | Some(uniqueId) when model.RangeAccessories.Count > 0 ->
+                    | Some(uniqueId) when model.RangeAccessories.ContainsKey uniqueId ->
                         let accessory = model.RangeAccessories |> Map.find uniqueId
                         characteristicSelector accessory
 
@@ -470,14 +485,14 @@ let view model dispatch =
                                         input [Type "range"; Min minValue; Max maxValue; Step minStep; Value targetValue;
                                             OnInput (fun x -> 
                                                 let payload = Some(float x.Value)
-                                                dispatch <| ChangedTargetValue payload)]
+                                                dispatch <| ChangeTargetValue payload)]
                                         span [Class "clickable"; Value maxValue] [str $"{maxValue}"]
                                     ]
                                 ]
 
                                 if model.IsDevMode then testButton()
                                 successConfirmation
-                                characteristicDetails characteristicType accessory
+                                //characteristicDetails characteristicType accessory
                             | _ -> ()
                         | _ -> ()
                     | _ -> ()
