@@ -1,6 +1,10 @@
-1.2.0 - 1 Fev 2022
+1.2.0 - 9 Feb 2022
+- New accessory selector show all accessories and disable not compatible accessories
 - Added support for accessories outside of room layout
 - Added loading indicator when waiting for Homebridge responses
+- Added reset button option when device is no longer available
+- Added timeouts for Homebridge API calls
+- Improved error handling and user error message
 
 1.1.0 - 29 Jan 2022
 - Added `Set state` action
