@@ -160,10 +160,12 @@ let update (msg:PiMsg) (model:PiModel) =
             async {
                 match model.AuthInfo with 
                 | Ok auth ->
-                    let! layout = Client.getAccessoriesLayout model.ServerInfo.Host auth
+                    let! layout= Client.getAccessoriesLayout model.ServerInfo.Host auth
+                    let layout = match layout with | Ok layout -> layout | Error _ -> [||]
                     let! accessories = Client.getAccessories model.ServerInfo.Host auth
-                    match accessories, layout with
-                    | Ok(accessories), Ok(layout) ->
+                    
+                    match accessories with
+                    | Ok(accessories) ->
                         let devicesInLayout = 
                             layout
                             |> Array.collect (fun room -> 
@@ -192,7 +194,7 @@ let update (msg:PiMsg) (model:PiModel) =
                             |]
 
                         dispatch <| SetData (accessories, layout')
-                    | _ -> dispatch <| ResetLoading "Cannot get list of accessories and their room layout"
+                    | _ -> dispatch <| ResetLoading "Cannot get list of accessories"
                 | _ -> dispatch <| ResetLoading "User is not authenticated"
             } |> Async.StartImmediate
         { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
