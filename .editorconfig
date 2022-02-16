@@ -3,7 +3,8 @@ root = true
 [*.fs]
 max_line_length=150
 fsharp_max_infix_operator_expression=70
-fsharp_single_argument_web_mode=true
-fsharp_max_elmish_width=10
 fsharp_multiline_block_brackets_on_same_column=true
+fsharp_single_argument_web_mode=true
+fsharp_multi_line_lambda_closing_newline=true
+fsharp_disable_elmish_syntax=true
 fsharp_blank_lines_around_nested_multiline_expressions=false
