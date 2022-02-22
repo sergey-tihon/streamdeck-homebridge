@@ -27,32 +27,29 @@ type AccessoryDetails =
     }
 and AccessoryServiceCharacteristic =
     {
-        aid: int
-        iid: int
+        //aid: int
+        //iid: int
         uuid: string
         ``type``: string
-        serviceType: string
-        serviceName: string
+        //serviceType: string
+        //serviceName: string
         description: string
-        value: obj
+        value: obj option
         format: string
-        perms: string[]
-        unit: string option
+        //perms: string[]
+        //unit: string option
         maxValue: int option
         minValue: int option
         minStep: int option
-        canRead: bool
+        //canRead: bool
         canWrite: bool
-        ev: bool
+        //ev: bool
     }
 and AccessoryInformation = 
     {
         Manufacturer: string
         Model: string
         Name: string
-        //``Serial Number``: string
-        //``Firmware Revision``: string
-        //``Hardware Revision``: string
     }
 and AccessoryInstance = {
     name: string

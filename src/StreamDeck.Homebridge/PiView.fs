@@ -74,20 +74,27 @@ let filterCharacteristics filter (accessory:Client.AccessoryDetails) =
                 |> Array.filter filter 
     }
 
+let hasValue (ch:Client.AccessoryServiceCharacteristic) =
+    match ch.value with
+    | Some x when not (isNull x) -> true
+    | _ -> false
+
 let filterBoolCharacteristics =
     filterCharacteristics (fun x -> 
-        x.canWrite // we can modify value
+        x.canWrite && hasValue x // we can modify value
         && (x.format = "bool" // it is boolean
             || (x.format = "uint8" && x.minValue = Some 0 && x.maxValue = Some 1)) // or behave like boolean
     )
 
 let filterRangeCharacteristics =
-    filterCharacteristics (fun x -> 
-        match x.canWrite, x.format, x.minValue, x.maxValue with
-        | true, "uint8", Some a, Some b when b-a > 1 -> true
-        | true, "float", Some a, Some b when b-a > 1 -> true
-        | true, "int", Some a, Some b when b-a > 1 -> true
-        | _ -> false
+    filterCharacteristics (fun x ->
+        if x.canWrite && hasValue x then
+            match x.format, x.minValue, x.maxValue with
+            | "uint8", Some a, Some b when b-a > 1 -> true
+            | "float", Some a, Some b when b-a > 1 -> true
+            | "int", Some a, Some b when b-a > 1 -> true
+            | _ -> false
+        else false
     )
 
 let getCharacteristic characteristicType (accessory:Client.AccessoryDetails) =
@@ -231,7 +238,7 @@ let update (msg:PiMsg) (model:PiModel) =
             match characteristicType, model.ActionSetting.AccessoryId with
             | Some(characteristicType), Some(accessoryId) ->
                 let ch = model.Accessories |> Map.find accessoryId |> getCharacteristic characteristicType
-                Some (ch.value :?> float)
+                Some (ch.value.Value :?> float)
             | _ -> None
         let model'= { 
             model with 
@@ -264,7 +271,7 @@ let update (msg:PiMsg) (model:PiModel) =
                         match accessory with
                         | Ok accessory ->
                             let ch = accessory |> getCharacteristic characteristicType
-                            let currentValue = ch.value :?> int
+                            let currentValue = ch.value.Value :?> int
                             let targetValue = 1 - currentValue
                             let! accessory' = Client.setAccessoryCharacteristic model.ServerInfo.Host authInfo selectedAccessoryId characteristicType targetValue
                             match accessory' with 
@@ -358,23 +365,6 @@ let view model dispatch =
             ] [
                 str "Test configuration (Apply)"
             ]
-        ]
-    let characteristicDetails characteristicType (accessory:Client.AccessoryDetails) =
-        let ai = accessory.accessoryInformation
-        let ch = accessory |> getCharacteristic characteristicType
-
-        details [Class "message"] [
-            summary [] [str "More Info"]
-            h4 [] [str "Accessory Information"]
-            p [] [
-                str "Human Type: "; str accessory.humanType
-                str "Manufacturer: "; str ai.Manufacturer; br []
-                str "Model: "; str ai.Model]
-            h4 [] [str "Service Characteristics"]
-            p [] [
-                str "Service Type: "; str ch.serviceType; br []
-                str "Service Name: "; str ch.serviceName; br []
-                str "Description: "; str ch.description]
         ]
     let message icon color message =
         details [Class $"message {icon}"] [

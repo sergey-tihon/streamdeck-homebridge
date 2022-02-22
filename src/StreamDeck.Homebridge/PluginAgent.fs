@@ -43,13 +43,13 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                             match accessory with
                             | Ok accessory ->
                                 let ch = accessory |> PiView.getCharacteristic characteristicType
-                                let currentValue = ch.value :?> int
+                                let currentValue = ch.value.Value :?> int
                                 let targetValue = 1 - currentValue
                                 let! accessory' = Client.setAccessoryCharacteristic serverInfo.Host authInfo accessoryId characteristicType targetValue
                                 match accessory' with
                                 | Ok accessory' ->
                                     let ch' = accessory' |> PiView.getCharacteristic characteristicType
-                                    let currentValue' = ch'.value :?> int
+                                    let currentValue' = ch'.value.Value :?> int
                                     if currentValue = currentValue' 
                                     then replyAgent.Post <| PluginOut_ShowAlert event.context
                                     else replyAgent.Post <| PluginOut_SetState (event.context, currentValue') 
@@ -67,7 +67,7 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
                             match accessory with
                             | Ok accessory ->
                                 let ch = accessory |> PiView.getCharacteristic characteristicType
-                                let currentValue = ch.value :?> float
+                                let currentValue = ch.value.Value :?> float
                                 if abs(targetValue - currentValue) > 1e-8
                                 then replyAgent.Post <| PluginOut_ShowAlert event.context
                                 else replyAgent.Post <| PluginOut_ShowOk event.context
