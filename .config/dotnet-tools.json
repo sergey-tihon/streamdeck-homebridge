@@ -15,13 +15,13 @@
       ]
     },
     "fable": {
-      "version": "3.7.0",
+      "version": "3.7.2",
       "commands": [
         "fable"
       ]
     },
     "fantomas-tool": {
-      "version": "4.6.4",
+      "version": "4.6.5",
       "commands": [
         "fantomas"
       ]

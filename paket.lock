@@ -31,7 +31,7 @@ NUGET
       Fable.Browser.Event (>= 1.4.4)
       Fable.Core (>= 3.0)
       FSharp.Core (>= 4.7.2)
-    Fable.Core (3.6.1)
+    Fable.Core (3.6.2)
     Fable.Elmish (3.1)
       Fable.Core (>= 3.0)
       FSharp.Core (>= 4.6.2)

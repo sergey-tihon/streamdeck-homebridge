@@ -194,8 +194,8 @@ let update (msg:PiMsg) (model:PiModel) =
                             |]
 
                         dispatch <| SetData (accessories, layout')
-                    | _ -> dispatch <| ResetLoading "Cannot get list of accessories"
-                | _ -> dispatch <| ResetLoading "User is not authenticated"
+                    | Error e -> dispatch <| ResetLoading $"Cannot get list of accessories. {e}"
+                | Error e -> dispatch <| ResetLoading $"User is not authenticated. {e}"
             } |> Async.StartImmediate
         { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
     | SetData (accessories, layout) ->
