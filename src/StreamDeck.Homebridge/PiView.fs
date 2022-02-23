@@ -395,7 +395,7 @@ let view model dispatch =
                         Value model.ServerInfo.Host
                         Placeholder "e.g. http://192.168.0.1:8581"
                         Required true
-                        Pattern "http:\/\/\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{2,5}"
+                        Pattern "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$"
                         OnChange (fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Host = x.Value })
                     ]
                 ]
@@ -484,7 +484,6 @@ let view model dispatch =
 
                                 if model.IsDevMode then testButton()
                                 successConfirmation
-                                //characteristicDetails characteristicType accessory
                             | _ -> ()
                         | _ -> ()
                     | _ -> ()

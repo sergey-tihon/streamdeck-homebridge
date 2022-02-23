@@ -20,7 +20,7 @@ type AccessoryDetails =
         humanType: string
         serviceName: string
         serviceCharacteristics: AccessoryServiceCharacteristic[]
-        accessoryInformation: AccessoryInformation
+        //accessoryInformation: AccessoryInformation
         //values: Map<string, obj>
         instance: AccessoryInstance
         uniqueId: string
@@ -45,12 +45,12 @@ and AccessoryServiceCharacteristic =
         canWrite: bool
         //ev: bool
     }
-and AccessoryInformation = 
-    {
-        Manufacturer: string
-        Model: string
-        Name: string
-    }
+// and AccessoryInformation = 
+//     {
+//         Manufacturer: string
+//         Model: string
+//         Name: string option
+//     }
 and AccessoryInstance = {
     name: string
     username: string
