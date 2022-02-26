@@ -35,14 +35,14 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
         let agent = PluginAgent.createPluginAgent()
         connectPlugin args agent
     | "registerPropertyInspector" ->
-        let subcribe model =
+        let subscribe model =
             let sub (dispatch: PiView.PiMsg -> unit) =
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
             Cmd.ofSub sub
 
         Program.mkProgram (PiView.init false) PiView.update PiView.view
-        |> Program.withSubscription subcribe
+        |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
     | _ -> 

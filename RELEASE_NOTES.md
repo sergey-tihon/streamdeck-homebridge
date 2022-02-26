@@ -1,3 +1,11 @@
+1.3.0 - 27 Feb 2022
+- Improved Host validation pattern
+- Improved PI error messages
+- Relaxed Homebridge schema requirements
+- Fallback for layout unavailability
+- Exception analytics
+- Dependencies update
+
 1.2.0 - 9 Feb 2022
 - New accessory selector show all accessories and disable not compatible accessories
 - Added support for accessories outside of room layout

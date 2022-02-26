@@ -26,5 +26,7 @@ let inline tryParse<'t> (setting:obj) : 't option =
     |> Option.bind (fun json ->
         match Json.tryConvertFromJsonAs json with
         | Ok x -> Some x
-        | _ -> None
+        | Error e ->
+            GTag.logException e
+            None
     )

@@ -25,6 +25,7 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
             | PluginIn_KeyUp(event, payload) ->
                 let onError (message:string) = 
                     console.warn(message)
+                    GTag.logException message
                     replyAgent.Post <| PluginOut_LogMessage message
                     replyAgent.Post <| PluginOut_ShowAlert event.context
 
@@ -82,4 +83,3 @@ let createPluginAgent() :MailboxProcessor<PluginIn_Events> =
         }
         idle()
     )
-

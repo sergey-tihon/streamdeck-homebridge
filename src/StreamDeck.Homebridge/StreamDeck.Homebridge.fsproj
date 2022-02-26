@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="GTag.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="HomebridgeClient.fs" />
     <Compile Include="PiView.fs" />
