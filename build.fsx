@@ -22,9 +22,16 @@ open Fake.Core
 open Fake.Core.TargetOperators
 open Fake.IO
 open System
+open System.IO
 
 let bin = "bin"
 let name = "com.sergeytihon.homebridge.sdPlugin"
+
+let releaseNotesData =
+    File.ReadAllLines "RELEASE_NOTES.md"
+    |> ReleaseNotes.parseAll
+let release = List.head releaseNotesData    
+
 let macTarget = 
     IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -44,8 +51,24 @@ Target.create "NpmInstall" (fun _ ->
         | code -> failwithf "build failed with code %d" code
 )
 
+let setManifestJsonField fieldName value =
+    let fileName = Path.Combine( __SOURCE_DIRECTORY__, "src", name, "manifest.json")
+
+    let lines =
+        File.ReadAllLines fileName
+        |> Seq.map (fun line ->
+            if line.TrimStart().StartsWith($"\"{fieldName}\":") then
+                let indent = line.Substring(0, line.IndexOf("\""))
+                sprintf "%s\"%s\": %s," indent fieldName value
+            else
+                line)
+
+    File.WriteAllLines(fileName, lines)
 
 Target.create "Build" (fun _ ->
+    let versionString = $"\"{release.NugetVersion}\""
+    setManifestJsonField "Version" versionString
+
     Shell.copyDir $"bin/{name}" $"src/{name}" (fun s -> not <| s.Contains("/js/"))
     Shell.Exec("npm", "run build") 
     |>  function
