@@ -1,31 +1,21 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <title>com.sergeytihon.homebridge</title>
     <meta charset="utf-8" />
     <style>
-        canvas {
-            background-color: transparent;
-        }
+      canvas {
+        background-color: transparent;
+      }
     </style>
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VG4T7K8X59"></script>
-    <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+  </head>
 
-    gtag('config', 'G-VG4T7K8X59');
-    </script>
-</head>
-
-<body>
+  <body>
     <script src="bundle.js"></script>
     <script type="text/javascript">
-        const connectElgatoStreamDeckSocket = SDPlugin.connectElgatoStreamDeckSocket
-        const connectSocket = connectElgatoStreamDeckSocket // legacy support 
+      const connectElgatoStreamDeckSocket =
+        SDPlugin.connectElgatoStreamDeckSocket;
+      const connectSocket = connectElgatoStreamDeckSocket; // legacy support
     </script>
-</body>
-
+  </body>
 </html>

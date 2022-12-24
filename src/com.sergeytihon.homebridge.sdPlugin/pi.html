@@ -1,33 +1,25 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <title>com.sergeytihon.homebridge.property-inspector</title>
     <meta charset="utf-8" />
-    <meta name=viewport
-        content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
-    <meta name=apple-mobile-web-app-capable content=yes>
-    <meta name=apple-mobile-web-app-status-bar-style content=black>
-    <link rel="stylesheet" type="text/css" href="css/sdpi.css">
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VG4T7K8X59"></script>
-    <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="stylesheet" type="text/css" href="css/sdpi.css" />
+  </head>
 
-    gtag('config', 'G-VG4T7K8X59');
-    </script>
-</head>
-
-<body>
+  <body>
     <div id="elmish-app"></div>
-    <div class="sdpi-info-label hidden" style="top: -1000;" value=""></div>
+    <div class="sdpi-info-label hidden" style="top: -1000" value=""></div>
     <script src="bundle.js"></script>
     <script type="text/javascript">
-        const connectElgatoStreamDeckSocket = SDPlugin.connectElgatoStreamDeckSocket
-        const connectSocket = connectElgatoStreamDeckSocket // legacy support 
+      const connectElgatoStreamDeckSocket =
+        SDPlugin.connectElgatoStreamDeckSocket;
+      const connectSocket = connectElgatoStreamDeckSocket; // legacy support
     </script>
-</body>
-
+  </body>
 </html>

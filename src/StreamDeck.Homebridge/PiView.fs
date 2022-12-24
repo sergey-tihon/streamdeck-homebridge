@@ -172,7 +172,6 @@ let update (msg:PiMsg) (model:PiModel) =
                         match layout with
                         | Ok layout -> layout
                         | Error err ->
-                            GTag.logException err
                             [||]
                     let! accessories = Client.getAccessories model.ServerInfo.Host auth
                     
@@ -223,7 +222,6 @@ let update (msg:PiMsg) (model:PiModel) =
         }
         state, Cmd.none
     | ResetLoading error ->
-        GTag.logException error
         { model with IsLoading = Error error}, Cmd.none
     | SelectActionType actionType -> 
         { model with ActionType = actionType}, Cmd.none
