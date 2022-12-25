@@ -1,3 +1,7 @@
+## 1.4.0 - 25 Dec 2022
+- Removed analytics
+- Dependencies update
+
 ## 1.3.1 - 27 Feb 2022
 - Fix version in manifest.json
 

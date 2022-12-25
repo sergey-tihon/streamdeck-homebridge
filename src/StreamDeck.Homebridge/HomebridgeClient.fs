@@ -110,7 +110,6 @@ let authenticate (serverInfo:Domain.GlobalSettings) =
                 Json.tryParseAs<AuthResult> response.responseText
             else
                 let msg = $"Unsuccessful login: Server is unavailable or login/password is incorrect. {response.responseText}"
-                GTag.logException msg
                 Error msg
     }
 

@@ -7,7 +7,6 @@ open StreamDeck.SDK.PluginModel
 open StreamDeck.SDK.PiModel
 
 open Elmish
-open Elmish.Navigation
 open Elmish.HMR
 open Elmish.Debug
 
@@ -39,7 +38,11 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
             let sub (dispatch: PiView.PiMsg -> unit) =
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
-            Cmd.ofSub sub
+                { new System.IDisposable with
+                    member _.Dispose() = ()
+                }
+            [ [ "ws" ], sub ]
+
 
         Program.mkProgram (PiView.init false) PiView.update PiView.view
         |> Program.withSubscription subscribe
