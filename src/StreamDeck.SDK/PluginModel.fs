@@ -1,5 +1,6 @@
 module StreamDeck.SDK.PluginModel
 
+open System.Collections.Generic
 open Browser.Dom
 open Browser.Types
 open Dto
@@ -16,10 +17,16 @@ type PluginInEvent =
     | KeyDown of event: Event * payload: ActionPayload
     /// When the user releases a key, the plugin will receive the `keyUp` event.
     | KeyUp of event: Event * payload: ActionPayload
+    // When the user touches the display, the plugin will receive the touchTap event (SD+).
+    | TouchTap of event: Event * payload: TouchTapActionPayload
+    // When the user presses or releases the encoder, the plugin will receive the dialPress event (SD+).
+    | DialPress of event: Event * payload: DialPressActionPayload
+    // When the user rotates the encoder, the plugin will receive the dialRotate event (SD+).
+    | DialRotate of event: Event * payload: DialRotateActionPayload
     /// When an instance of an action is displayed on the Stream Deck, for example when the hardware is first plugged in, or when a folder containing that action is entered, the plugin will receive a `willAppear` event.
-    | WillAppear of event: Event * payload: ActionPayload
+    | WillAppear of event: Event * payload: AppearanceActionPayload
     /// When an instance of an action ceases to be displayed on Stream Deck, for example when switching profiles or folders, the plugin will receive a `willDisappear` event.
-    | WillDisappear of event: Event * payload: ActionPayload
+    | WillDisappear of event: Event * payload: AppearanceActionPayload
     /// When the user changes the title or title parameters, the plugin will receive a `titleParametersDidChange` event.
     | TitleParametersDidChange of event: Event * payload: ActionTitlePayload
     /// When a device is plugged to the computer, the plugin will receive a `deviceDidConnect` event.
@@ -56,6 +63,10 @@ and [<RequireQualifiedAccess>] PluginOutEvent =
     | SetTitle of context: string * payload: SetTitlePayload
     /// Dynamically change the image displayed by an instance of an action.
     | SetImage of context: string * payload: SetImagePayload
+    // Dynamically change properties of items on the Stream Deck + touch display.
+    | SetFeedback of context: string * payload: Dictionary<string, obj>
+    // Dynamically change the current layout for the Stream Deck + touch display
+    | SetFeedbackLayout of context: string * payload: SetFeedbackLayoutPayload
     /// Temporarily show an alert icon on the image displayed by an instance of an action.
     | ShowAlert of context: string
     /// Temporarily show an OK checkmark icon on the image displayed by an instance of an action.
@@ -137,6 +148,21 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
                         context = context
                         payload = payload
                     |}
+            | PluginOutEvent.SetFeedback(context, payload) ->
+                sendJson
+                    {|
+                        event = "setFeedback"
+                        // A value to Identify the instance's action you want to modify.
+                        context = context
+                        payload = payload
+                    |}
+            | PluginOutEvent.SetFeedbackLayout(context, payload) ->
+                sendJson
+                    {|
+                        event = "setFeedbackLayout"
+                        context = context
+                        payload = payload
+                    |}
             | PluginOutEvent.ShowAlert context ->
                 sendJson
                     {|
@@ -206,27 +232,27 @@ let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginInEvent>)
 
             let pEvent =
                 match event.event with
-                | "didReceiveSettings" -> Some <| PluginInEvent.DidReceiveSettings(event, payload)
-                | "didReceiveGlobalSettings" -> Some <| PluginInEvent.DidReceiveGlobalSettings(payload.settings)
-                | "keyDown" -> Some <| PluginInEvent.KeyDown(event, payload)
-                | "keyUp" -> Some <| PluginInEvent.KeyUp(event, payload)
-                | "willAppear" -> Some <| PluginInEvent.WillAppear(event, payload)
-                | "willDisappear" -> Some <| PluginInEvent.WillDisappear(event, payload)
+                | "didReceiveSettings" -> Some(PluginInEvent.DidReceiveSettings(event, payload))
+                | "didReceiveGlobalSettings" -> Some(PluginInEvent.DidReceiveGlobalSettings(payload.settings))
+                | "keyDown" -> Some(PluginInEvent.KeyDown(event, payload))
+                | "keyUp" -> Some(PluginInEvent.KeyUp(event, payload))
+                | "touchTap" -> Some(PluginInEvent.TouchTap(event, event.payload :?> TouchTapActionPayload))
+                | "dialPress" -> Some(PluginInEvent.DialPress(event, event.payload :?> DialPressActionPayload))
+                | "dialRotate" -> Some(PluginInEvent.DialRotate(event, event.payload :?> DialRotateActionPayload))
+                | "willAppear" -> Some(PluginInEvent.WillAppear(event, event.payload :?> AppearanceActionPayload))
+                | "willDisappear" -> Some(PluginInEvent.WillDisappear(event, event.payload :?> AppearanceActionPayload))
                 | "titleParametersDidChange" ->
-                    Some
-                    <| PluginInEvent.TitleParametersDidChange(event, event.payload :?> ActionTitlePayload)
-                | "deviceDidConnect" -> Some <| PluginInEvent.DeviceDidConnect(json :?> DeviceEvent)
-                | "deviceDidDisconnect" -> Some <| PluginInEvent.DeviceDidDisconnect(json :?> DeviceEvent)
+                    Some(PluginInEvent.TitleParametersDidChange(event, event.payload :?> ActionTitlePayload))
+                | "deviceDidConnect" -> Some(PluginInEvent.DeviceDidConnect(json :?> DeviceEvent))
+                | "deviceDidDisconnect" -> Some(PluginInEvent.DeviceDidDisconnect(json :?> DeviceEvent))
                 | "applicationDidLaunch" ->
-                    Some
-                    <| PluginInEvent.ApplicationDidLaunch((json :?> ApplicationPayload).application)
+                    Some(PluginInEvent.ApplicationDidLaunch((json :?> ApplicationPayload).application))
                 | "applicationDidTerminate" ->
-                    Some
-                    <| PluginInEvent.ApplicationDidTerminate((json :?> ApplicationPayload).application)
-                | "systemDidWakeUp" -> Some <| PluginInEvent.SystemDidWakeUp
-                | "propertyInspectorDidAppear" -> Some <| PluginInEvent.PropertyInspectorDidAppear(event)
-                | "propertyInspectorDidDisappear" -> Some <| PluginInEvent.PropertyInspectorDidDisappear(event)
-                | "sendToPlugin" -> Some <| PluginInEvent.SendToPlugin(event)
+                    Some(PluginInEvent.ApplicationDidTerminate((json :?> ApplicationPayload).application))
+                | "systemDidWakeUp" -> Some(PluginInEvent.SystemDidWakeUp)
+                | "propertyInspectorDidAppear" -> Some(PluginInEvent.PropertyInspectorDidAppear(event))
+                | "propertyInspectorDidDisappear" -> Some(PluginInEvent.PropertyInspectorDidDisappear(event))
+                | "sendToPlugin" -> Some(PluginInEvent.SendToPlugin(event))
                 | _ ->
                     console.warn($"Unexpected event ({event.event}) received by Plugin", event)
                     None

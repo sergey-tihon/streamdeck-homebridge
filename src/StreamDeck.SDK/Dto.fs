@@ -116,6 +116,19 @@ type ActionPayload = {
     isInMultiAction: bool
 }
 
+type AppearanceActionPayload = {
+    /// This json object contains persistently stored data.
+    settings: obj
+    /// The coordinates of the action triggered.
+    coordinates: Coordinates
+    /// This is a parameter that is only set when the action has multiple states defined in its manifest.json. The 0-based value contains the current state of the action.
+    state: int option
+    /// Boolean indicating if the action is inside a Multi Action.
+    isInMultiAction: bool
+    /// The string holds the name of the controller of the current action. Values include "Keypad" and "Encoder".
+    controller: string
+}
+
 type ActionTitlePayload = {
     /// This json object contains data that you can set and is stored persistently
     settings: obj
@@ -182,4 +195,40 @@ type SetImagePayload = {
     target: int option
     /// A 0-based integer value representing the state of an action with multiple states. This is an optional parameter. If not specified, the image is set to all states.
     state: int
+}
+
+type SetFeedbackLayoutPayload = {
+    /// A predefined layout identifier or the relative path to a json file that contains a custom layout
+    layout: string
+}
+
+type TouchTapActionPayload = {
+    /// This JSON object contains data that you can set and are stored persistently.
+    settings: obj
+    /// The coordinates of the action triggered.
+    coordinates: Coordinates
+    /// The array which holds (x, y) coordinates as a position of tap inside of LCD slot associated with action.
+    tapPos: int[]
+    /// Boolean which is true when long tap happened
+    hold: bool
+}
+
+type DialPressActionPayload = {
+    /// TThis JSON object contains data that you can set and are stored persistently.
+    settings: obj
+    /// The coordinates of the action triggered.
+    coordinates: Coordinates
+    /// Boolean which is true on encoder pressed, else false on released
+    pressed: bool
+}
+
+type DialRotateActionPayload = {
+    /// TThis JSON object contains data that you can set and are stored persistently.
+    settings: obj
+    /// The coordinates of the action triggered.
+    coordinates: Coordinates
+    /// The integer which holds the number of "ticks" on encoder rotation. Positive values are for clockwise rotation, negative values are for counterclockwise rotation, zero value is never happen
+    ticks: int
+    /// Boolean which is true on rotation when encoder pressed
+    pressed: bool
 }
