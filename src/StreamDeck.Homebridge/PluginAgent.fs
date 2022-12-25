@@ -3,14 +3,14 @@ module StreamDeck.Homebridge.PluginAgent
 open Browser.Dom
 open StreamDeck.SDK.PluginModel
 
-let createPluginAgent() : MailboxProcessor<PluginIn_Events> =
+let createPluginAgent() : MailboxProcessor<PluginInEvent> =
     MailboxProcessor.Start(fun inbox ->
         let rec idle() = async {
             let! msg = inbox.Receive()
 
             match msg with
-            | PluginIn_Connected(startArgs, replyAgent) ->
-                replyAgent.Post <| PluginOut_GetGlobalSettings
+            | PluginInEvent.Connected(startArgs, replyAgent) ->
+                replyAgent.Post <| PluginOutEvent.GetGlobalSettings
                 return! loop startArgs replyAgent None
             | _ ->
                 console.warn($"Idle plugin agent received unexpected message %A{msg}", msg)
@@ -22,19 +22,19 @@ let createPluginAgent() : MailboxProcessor<PluginIn_Events> =
             console.log($"Plugin message is: %A{msg}", msg)
 
             match msg with
-            | PluginIn_DidReceiveGlobalSettings settings ->
+            | PluginInEvent.DidReceiveGlobalSettings settings ->
                 let settings = Domain.tryParse<Domain.GlobalSettings>(settings)
                 return! loop startArgs replyAgent settings
-            | PluginIn_KeyUp(event, payload) ->
+            | PluginInEvent.KeyUp(event, payload) ->
                 let onError(message: string) =
                     console.warn(message)
-                    replyAgent.Post <| PluginOut_LogMessage message
-                    replyAgent.Post <| PluginOut_ShowAlert event.context
+                    replyAgent.Post <| PluginOutEvent.LogMessage message
+                    replyAgent.Post <| PluginOutEvent.ShowAlert event.context
 
                 match event.action with
                 | Domain.CONFIG_ACTION_NAME ->
                     match globalSetting with
-                    | Some(serverInfo) -> replyAgent.Post <| PluginOut_OpenUrl serverInfo.Host
+                    | Some(serverInfo) -> replyAgent.Post <| PluginOutEvent.OpenUrl serverInfo.Host
                     | _ -> onError "Global config is not provided"
                 | Domain.SWITCH_ACTION_NAME ->
                     let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
@@ -69,9 +69,10 @@ let createPluginAgent() : MailboxProcessor<PluginIn_Events> =
                                     let currentValue' = ch'.value.Value :?> int
 
                                     if currentValue = currentValue' then
-                                        replyAgent.Post <| PluginOut_ShowAlert event.context
+                                        replyAgent.Post <| PluginOutEvent.ShowAlert event.context
                                     else
-                                        replyAgent.Post <| PluginOut_SetState(event.context, currentValue')
+                                        replyAgent.Post
+                                        <| PluginOutEvent.SetState(event.context, currentValue')
                                 | Error e -> onError e
                             | Error e -> onError $"Cannot find accessory by id '{accessoryId}'. {e}"
                         | Error e -> onError $"Authentication issue: {e}"
@@ -102,9 +103,9 @@ let createPluginAgent() : MailboxProcessor<PluginIn_Events> =
                                 let currentValue = ch.value.Value :?> float
 
                                 if abs(targetValue - currentValue) > 1e-8 then
-                                    replyAgent.Post <| PluginOut_ShowAlert event.context
+                                    replyAgent.Post <| PluginOutEvent.ShowAlert event.context
                                 else
-                                    replyAgent.Post <| PluginOut_ShowOk event.context
+                                    replyAgent.Post <| PluginOutEvent.ShowOk event.context
                             | Error e -> onError e
                         | Error e -> onError $"Authentication issue: {e}"
                     | _ -> onError "Action is not properly configured"
