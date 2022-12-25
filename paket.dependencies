@@ -4,14 +4,14 @@ storage: none
 framework: netstandard2.0
 
 nuget Fable.Core
-nuget Fable.Elmish
-nuget Fable.Elmish.React
+nuget Fable.Elmish ~> 3.0
+nuget Fable.Elmish.React ~> 3.0
 nuget Fable.Elmish.Debugger
 nuget Fable.Elmish.HMR
 nuget Fable.Browser.Dom
 nuget Fable.Browser.WebSocket
-nuget Fable.React
 nuget Fable.SimpleJson
 nuget Fable.SimpleHttp
+nuget Feliz 1.68.0
 
 http https://developer.elgato.com/documentation/stream-deck/distributiontool/DistributionToolMac.zip

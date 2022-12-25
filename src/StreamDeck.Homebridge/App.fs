@@ -49,14 +49,15 @@ let connectElgatoStreamDeckSocket
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
 
-                { new System.IDisposable with
-                    member _.Dispose() = ()
-                }
+            Cmd.ofSub sub
+        //     { new System.IDisposable with
+        //         member _.Dispose() = ()
+        //     }
 
-            [ [ "ws" ], sub ]
+        // [ [ "ws" ], sub ]
 
 
-        Program.mkProgram (PiView.init false) PiView.update PiView.view
+        Program.mkProgram (PiView.init false) PiView.update PiView.render
         |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
@@ -64,7 +65,7 @@ let connectElgatoStreamDeckSocket
 
 
 let startPropertyInspectorApp() =
-    Program.mkProgram (PiView.init true) PiView.update PiView.view
+    Program.mkProgram (PiView.init true) PiView.update PiView.render
 #if DEBUG
     |> Program.withDebugger
 #endif
