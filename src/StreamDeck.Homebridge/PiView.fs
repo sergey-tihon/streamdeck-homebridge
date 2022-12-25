@@ -148,7 +148,7 @@ let update (msg:PiMsg) (model:PiModel) =
                 | _ -> ()
                 dispatch <| SetLoginResult result
             } |> Async.StartImmediate
-        { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
+        { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
     | SetLoginResult authInfo ->
         let cmd = 
             match authInfo with
@@ -208,7 +208,7 @@ let update (msg:PiMsg) (model:PiModel) =
                     | Error e -> dispatch <| ResetLoading $"Cannot get list of accessories. {e}"
                 | Error e -> dispatch <| ResetLoading $"User is not authenticated. {e}"
             } |> Async.StartImmediate
-        { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
+        { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
     | SetData (accessories, layout) ->
         let toMap (accessories:Client.AccessoryDetails[]) = 
             accessories |> Array.map (fun x-> x.uniqueId, x) |> Map.ofArray
@@ -293,7 +293,7 @@ let update (msg:PiMsg) (model:PiModel) =
                     } |> Async.StartImmediate
                 | _ -> console.error("Unexpected action ", model.ActionType)
             | _ -> ()
-        model, Cmd.ofSub delayedCmd
+        model, Cmd.ofEffect delayedCmd
 
 let view model dispatch =
 
