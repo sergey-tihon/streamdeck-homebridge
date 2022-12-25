@@ -12,10 +12,10 @@ Install from [Stream Deck App Store](https://apps.elgato.com/plugins/com.sergeyt
 
 ## Compatibility
 
-- Tested with Homebridge 1.4.0
-- Support macOS 10.11 and higher
-- Support Windows 10 and higher
-- Support Elgato Stream Deck 4.1.0 and higher
+- Tested with Homebridge 1.6.0
+- Support macOS 13.1 and higher
+- Support Windows 11 and higher
+- Support Elgato Stream Deck 6.0.1 and higher
 
 ## Credits
 

@@ -1,4 +1,5 @@
-## 1.4.0 - 25 Dec 2022
+## 1.4.0 - 26 Dec 2022
+- F# SDK aligned with [Changes in Stream Deck 6.0](https://developer.elgato.com/documentation/stream-deck/sdk/changelog/)
 - Removed analytics
 - Dependencies update
 
