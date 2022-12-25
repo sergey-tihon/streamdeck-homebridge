@@ -19,28 +19,40 @@ open Elmish.Debug
 /// <param name="inMessageType">Identifies, if the event is meant for the property inspector or the plugin.</param>
 /// <param name="inApplicationInfo">Information about the host (StreamDeck) application.</param>
 /// <param name="inActionInfo">Context is an internal identifier used to communicate to the host application.</param>
-let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:string, inApplicationInfo:string, inActionInfo:string) =
-    let args : StartArgs = {
+let connectElgatoStreamDeckSocket
+    (
+        inPort: string,
+        inUUID: string,
+        inMessageType: string,
+        inApplicationInfo: string,
+        inActionInfo: string
+    ) =
+    let args: StartArgs = {
         Port = inPort
         UUID = inUUID
         MessageType = inMessageType
         ApplicationInfo = JSON.parse(inApplicationInfo) :?> ApplicationInfo
-        ActionInfo = 
-            if isNull inActionInfo then None
-            else JSON.parse(inActionInfo) :?> ActionInfo |> Some
+        ActionInfo =
+            if isNull inActionInfo then
+                None
+            else
+                JSON.parse(inActionInfo) :?> ActionInfo |> Some
     }
+
     match inMessageType with
     | "registerPlugin" ->
         let agent = PluginAgent.createPluginAgent()
         connectPlugin args agent
     | "registerPropertyInspector" ->
         let subscribe model =
-            let sub (dispatch: PiView.PiMsg -> unit) =
+            let sub(dispatch: PiView.PiMsg -> unit) =
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
+
                 { new System.IDisposable with
                     member _.Dispose() = ()
                 }
+
             [ [ "ws" ], sub ]
 
 
@@ -48,14 +60,13 @@ let connectElgatoStreamDeckSocket (inPort:string, inUUID:string, inMessageType:s
         |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
-    | _ -> 
-        console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
+    | _ -> console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
 
 
 let startPropertyInspectorApp() =
     Program.mkProgram (PiView.init true) PiView.update PiView.view
-    #if DEBUG
+#if DEBUG
     |> Program.withDebugger
-    #endif
+#endif
     |> Program.withReactBatched "elmish-app"
     |> Program.run
