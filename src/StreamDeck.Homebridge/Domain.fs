@@ -1,7 +1,6 @@
 module StreamDeck.Homebridge.Domain
 
 open Fable.SimpleJson
-open StreamDeck.SDK
 
 type GlobalSettings = {
     Host: string
@@ -15,14 +14,15 @@ type ActionSetting = {
     TargetValue: float option
 }
 
-[<Literal>]
-let CONFIG_ACTION_NAME = "com.sergeytihon.homebridge.config-ui"
+module ActionName =
+    [<Literal>]
+    let ConfigUi = "com.sergeytihon.homebridge.config-ui"
 
-[<Literal>]
-let SWITCH_ACTION_NAME = "com.sergeytihon.homebridge.switch"
+    [<Literal>]
+    let Switch = "com.sergeytihon.homebridge.switch"
 
-[<Literal>]
-let SET_ACTION_NAME = "com.sergeytihon.homebridge.set"
+    [<Literal>]
+    let Set = "com.sergeytihon.homebridge.set"
 
 let inline tryParse<'t>(setting: obj) : 't option =
     SimpleJson.fromObjectLiteral setting

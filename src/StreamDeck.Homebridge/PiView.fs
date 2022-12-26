@@ -294,7 +294,7 @@ let update (msg: PiMsg) (model: PiModel) =
             match model.AuthInfo, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
             | Ok(authInfo), Some(selectedAccessoryId), Some(characteristicType) ->
                 match model.ActionType with
-                | Some(Domain.SWITCH_ACTION_NAME) ->
+                | Some(Domain.ActionName.Switch) ->
                     async {
                         let! accessory = Client.getAccessory model.ServerInfo.Host authInfo selectedAccessoryId
 
@@ -318,7 +318,7 @@ let update (msg: PiMsg) (model: PiModel) =
                         | Error e -> console.error(e)
                     }
                     |> Async.StartImmediate
-                | Some(Domain.SET_ACTION_NAME) ->
+                | Some(Domain.ActionName.Set) ->
                     async {
                         let targetValue = model.ActionSetting.TargetValue.Value
 
@@ -554,15 +554,15 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                         dispatch <| PiMsg.SelectActionType msg)
                                     prop.children [
                                         Html.option [ prop.value "DEFAULT" ]
-                                        Html.option [ prop.value Domain.CONFIG_ACTION_NAME; prop.text "Config UI" ]
-                                        Html.option [ prop.value Domain.SWITCH_ACTION_NAME; prop.text "Switch" ]
-                                        Html.option [ prop.value Domain.SET_ACTION_NAME; prop.text "Set state" ]
+                                        Html.option [ prop.value Domain.ActionName.ConfigUi; prop.text "Config UI" ]
+                                        Html.option [ prop.value Domain.ActionName.Switch; prop.text "Switch" ]
+                                        Html.option [ prop.value Domain.ActionName.Set; prop.text "Set state" ]
                                     ]
                                 ]
                             ]
                         ]
-                    | Some(Domain.CONFIG_ACTION_NAME) -> successConfirmation
-                    | Some(Domain.SWITCH_ACTION_NAME) ->
+                    | Some(Domain.ActionName.ConfigUi) -> successConfirmation
+                    | Some(Domain.ActionName.Switch) ->
                         yield! accessorySelector model.SwitchAccessories
 
                         match model.ActionSetting.AccessoryId with
@@ -579,7 +579,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             //characteristicDetails characteristicType accessory
                             | None -> ()
                         | _ -> ()
-                    | Some(Domain.SET_ACTION_NAME) ->
+                    | Some(Domain.ActionName.Set) ->
                         yield! accessorySelector model.RangeAccessories
 
                         match model.ActionSetting.AccessoryId with
