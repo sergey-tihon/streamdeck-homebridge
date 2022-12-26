@@ -1,4 +1,4 @@
-module StreamDeck.Homebridge.Css
+module StreamDeck.SDK.Css
 
 [<RequireQualifiedAccess>]
 module SdPi =

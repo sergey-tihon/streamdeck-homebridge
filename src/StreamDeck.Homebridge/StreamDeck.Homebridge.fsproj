@@ -6,7 +6,6 @@
   <ItemGroup>
     <Compile Include="Domain.fs" />
     <Compile Include="HomebridgeClient.fs" />
-    <Compile Include="Css.fs" />
     <Compile Include="PiView.fs" />
     <Compile Include="PiAgent.fs" />
     <Compile Include="PluginAgent.fs" />

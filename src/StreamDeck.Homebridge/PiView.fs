@@ -4,7 +4,7 @@ open Browser
 open Elmish
 open StreamDeck.SDK.Dto
 open StreamDeck.SDK.PiModel
-open StreamDeck.Homebridge.Css
+open StreamDeck.SDK.Css
 open System.Text.RegularExpressions
 open Feliz
 
