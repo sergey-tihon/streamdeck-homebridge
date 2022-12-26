@@ -2,6 +2,7 @@ STORAGE: NONE
 RESTRICTION: == netstandard2.0
 NUGET
   remote: https://api.nuget.org/v3/index.json
+    Fable.AST (4.2.1)
     Fable.Browser.Blob (1.2)
       Fable.Core (>= 3.0)
       FSharp.Core (>= 4.7.2)
@@ -50,10 +51,6 @@ NUGET
     Fable.Parsimmon (4.1)
       Fable.Core (>= 3.0)
       FSharp.Core (>= 4.6.2)
-    Fable.React (9.1)
-      Fable.React.Types (>= 18.1)
-      Fable.ReactDom.Types (>= 18.0)
-      FSharp.Core (>= 4.7.2)
     Fable.React.Types (18.1)
       Fable.Browser.Dom (>= 2.4.4)
       Fable.Core (>= 3.2.7)
@@ -70,6 +67,13 @@ NUGET
       Fable.Core (>= 3.1.5)
       Fable.Parsimmon (>= 4.0)
       FSharp.Core (>= 4.7)
+    Feliz (2.0.1)
+      Fable.React.Types (>= 18.1)
+      Feliz.CompilerPlugins (>= 2.0)
+      FSharp.Core (>= 4.7.2)
+    Feliz.CompilerPlugins (2.0)
+      Fable.AST (>= 4.2.1)
+      FSharp.Core (>= 4.7.2)
     FSharp.Core (7.0)
     Thoth.Json (9.0)
       Fable.Core (>= 3.1.6)

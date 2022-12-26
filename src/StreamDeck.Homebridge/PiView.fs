@@ -2,10 +2,12 @@ module StreamDeck.Homebridge.PiView
 
 open Browser
 open Elmish
-open Fable.React
-open Fable.React.Props
 open StreamDeck.SDK.Dto
 open StreamDeck.SDK.PiModel
+open StreamDeck.Homebridge.Css
+open System.Text.RegularExpressions
+open Feliz
+
 
 type PiModel = {
     IsDevMode: bool
@@ -23,6 +25,7 @@ type PiModel = {
     ActionSetting: Domain.ActionSetting
 }
 
+[<RequireQualifiedAccess>]
 type PiMsg =
     | PiConnected of startArgs: StartArgs * replyAgent: MailboxProcessor<PiOutEvent>
     | GlobalSettingsReceived of Domain.GlobalSettings
@@ -109,7 +112,7 @@ let sdDispatch msg (model: PiModel) =
 
 let update (msg: PiMsg) (model: PiModel) =
     match msg with
-    | PiConnected(startArgs, replyAgent) ->
+    | PiMsg.PiConnected(startArgs, replyAgent) ->
         let model' =
             { model with
                 ReplyAgent = Some replyAgent
@@ -125,18 +128,18 @@ let update (msg: PiMsg) (model: PiModel) =
                 | None -> model'
 
         model', Cmd.none
-    | GlobalSettingsReceived settings ->
+    | PiMsg.GlobalSettingsReceived settings ->
         let model' =
             { model with
                 ServerInfo = settings
                 AuthInfo = Error null
             }
 
-        model', Cmd.ofMsg(Login false)
-    | ActionSettingReceived settings ->
+        model', Cmd.ofMsg(PiMsg.Login false)
+    | PiMsg.ActionSettingReceived settings ->
         let model' = { model with ActionSetting = settings }
         model', Cmd.none
-    | UpdateServerInfo serverInfo ->
+    | PiMsg.UpdateServerInfo serverInfo ->
         let model' =
             { model with
                 ServerInfo = serverInfo
@@ -144,7 +147,7 @@ let update (msg: PiMsg) (model: PiModel) =
             }
 
         model', Cmd.none
-    | Login manual ->
+    | PiMsg.Login manual ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
             async {
                 let! result = Client.authenticate model.ServerInfo
@@ -153,15 +156,15 @@ let update (msg: PiMsg) (model: PiModel) =
                 | true, Ok _ -> model |> sdDispatch(PiOutEvent.SetGlobalSettings model.ServerInfo)
                 | _ -> ()
 
-                dispatch <| SetLoginResult result
+                dispatch <| PiMsg.SetLoginResult result
             }
             |> Async.StartImmediate
 
         { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
-    | SetLoginResult authInfo ->
+    | PiMsg.SetLoginResult authInfo ->
         let cmd =
             match authInfo with
-            | Ok _ -> Cmd.ofMsg GetData
+            | Ok _ -> Cmd.ofMsg PiMsg.GetData
             | _ -> Cmd.none
 
         let model' =
@@ -171,8 +174,8 @@ let update (msg: PiMsg) (model: PiModel) =
             }
 
         model', cmd
-    | Logout -> { model with AuthInfo = Error null }, Cmd.none
-    | GetData ->
+    | PiMsg.Logout -> { model with AuthInfo = Error null }, Cmd.none
+    | PiMsg.GetData ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
             async {
                 match model.AuthInfo with
@@ -216,14 +219,14 @@ let update (msg: PiMsg) (model: PiModel) =
                                     }
                                 |]
 
-                        dispatch <| SetData(accessories, layout')
-                    | Error e -> dispatch <| ResetLoading $"Cannot get list of accessories. {e}"
-                | Error e -> dispatch <| ResetLoading $"User is not authenticated. {e}"
+                        dispatch <| PiMsg.SetData(accessories, layout')
+                    | Error e -> dispatch <| PiMsg.ResetLoading $"Cannot get list of accessories. {e}"
+                | Error e -> dispatch <| PiMsg.ResetLoading $"User is not authenticated. {e}"
             }
             |> Async.StartImmediate
 
         { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
-    | SetData(accessories, layout) ->
+    | PiMsg.SetData(accessories, layout) ->
         let toMap(accessories: Client.AccessoryDetails[]) =
             accessories |> Array.map(fun x -> x.uniqueId, x) |> Map.ofArray
 
@@ -237,9 +240,9 @@ let update (msg: PiMsg) (model: PiModel) =
             }
 
         state, Cmd.none
-    | ResetLoading error -> { model with IsLoading = Error error }, Cmd.none
-    | SelectActionType actionType -> { model with ActionType = actionType }, Cmd.none
-    | SelectAccessory uniqueId ->
+    | PiMsg.ResetLoading error -> { model with IsLoading = Error error }, Cmd.none
+    | PiMsg.SelectActionType actionType -> { model with ActionType = actionType }, Cmd.none
+    | PiMsg.SelectAccessory uniqueId ->
         let model' =
             { model with
                 ActionSetting =
@@ -252,7 +255,7 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
         model', Cmd.none
-    | SelectCharacteristic characteristicType ->
+    | PiMsg.SelectCharacteristic characteristicType ->
         let targetValue =
             match characteristicType, model.ActionSetting.AccessoryId with
             | Some(characteristicType), Some(accessoryId) ->
@@ -275,7 +278,7 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
         model', Cmd.none
-    | ChangeTargetValue targetValue ->
+    | PiMsg.ChangeTargetValue targetValue ->
         let model' =
             { model with
                 ActionSetting =
@@ -286,7 +289,7 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
         model', Cmd.none
-    | ToggleCharacteristic ->
+    | PiMsg.ToggleCharacteristic ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
             match model.AuthInfo, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
             | Ok(authInfo), Some(selectedAccessoryId), Some(characteristicType) ->
@@ -337,228 +340,314 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model, Cmd.ofEffect delayedCmd
 
-let view model dispatch =
+let render (model: PiModel) (dispatch: PiMsg -> unit) =
 
     let accessorySelector(accessories: Map<string, Client.AccessoryDetails>) = [
         match model.ActionSetting.AccessoryId with
         | Some(uniqueId) when not <| accessories.ContainsKey(uniqueId) ->
-            details [ Class $"message caution" ] [
-                summary [ Style [ Color "red" ] ] [
-                    str
-                        "Configured device is no longer available on Homebridge. Please update Homebridge or Reset button config."
+            Html.details [
+                prop.classes [ "message"; "caution" ]
+                prop.children [
+                    Html.summary [
+                        prop.style [ style.color "red" ]
+                        prop.text
+                            "Configured device is no longer available on Homebridge. Please update Homebridge or Reset button config."
+                    ]
                 ]
             ]
 
-            div [ Class "sdpi-item" ] [
-                button [ Class "sdpi-item-value"; OnClick(fun _ -> dispatch <| SelectAccessory None) ] [
-                    str "Reset button config"
+            Html.div [
+                prop.className SdPi.Item
+                prop.children [
+                    Html.button [
+                        prop.className SdPi.ItemValue
+                        prop.onClick(fun _ -> dispatch <| PiMsg.SelectAccessory None)
+                        prop.text "Reset button config"
+                    ]
                 ]
             ]
         | _ ->
-            div [ Class "sdpi-item" ] [
-                div [ Class "sdpi-item-label" ] [ str "Accessory" ]
-                select [
-                    Class "sdpi-item-value select"
-                    Value(model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
-                    OnChange(fun x ->
-                        let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                        dispatch <| SelectAccessory msg)
-                ] [
-                    option [ Value "DEFAULT" ] []
-                    for room in model.Layout do
-                        optgroup [ Label room.name ] [
-                            yield!
-                                room.services
-                                |> Array.choose(fun itemInfo ->
-                                    Map.tryFind itemInfo.uniqueId accessories
-                                    |> Option.map(fun accessoryDetails ->
-                                        let name =
-                                            itemInfo.customName
-                                            |> Option.defaultValue accessoryDetails.serviceName
+            Html.div [
+                prop.className SdPi.Item
+                prop.children [
+                    Html.div [ prop.className SdPi.ItemLabel; prop.text "Accessory" ]
+                    Html.select [
+                        prop.classes [ SdPi.ItemValue; "select" ]
+                        prop.value(model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
+                        prop.onChange(fun (value: string) ->
+                            //let value = x.Value
+                            let msg = if value = "DEFAULT" then None else Some value
+                            dispatch <| PiMsg.SelectAccessory msg)
+                        prop.children [
+                            Html.option [ prop.value "DEFAULT" ]
+                            for room in model.Layout do
+                                Html.optgroup [
+                                    prop.custom("label", room.name)
+                                    //prop.label room.name
+                                    prop.children(
+                                        room.services
+                                        |> Array.toList
+                                        |> List.choose(fun itemInfo ->
+                                            Map.tryFind itemInfo.uniqueId accessories
+                                            |> Option.map(fun accessoryDetails ->
+                                                let name =
+                                                    itemInfo.customName
+                                                    |> Option.defaultValue accessoryDetails.serviceName
 
-                                        name, accessoryDetails))
-                                |> Array.sortBy fst
-                                |> Array.map(fun (name, accessoryDetails) ->
-                                    option [
-                                        Value accessoryDetails.uniqueId
-                                        Disabled(accessoryDetails.serviceCharacteristics.Length = 0)
-                                    ] [ str name ])
+                                                name, accessoryDetails))
+                                        |> List.sortBy fst
+                                        |> List.map(fun (name, accessoryDetails) ->
+                                            Html.option [
+                                                prop.value accessoryDetails.uniqueId
+                                                prop.disabled(accessoryDetails.serviceCharacteristics.Length = 0)
+                                                prop.text name
+                                            ])
+                                    )
+                                ]
                         ]
+                    ]
                 ]
             ]
     ]
 
     let characteristicSelector(accessory: Client.AccessoryDetails) =
-        div [ Class "sdpi-item" ] [
-            div [ Class "sdpi-item-label" ] [ str "Characteristic" ]
-            select [
-                Class "sdpi-item-value select"
-                Value(
-                    model.ActionSetting.CharacteristicType
-                    |> Option.defaultValue "DEFAULT"
-                )
-                OnChange(fun x ->
-                    let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                    dispatch <| SelectCharacteristic msg)
-            ] [
-                option [ Value "DEFAULT" ] []
-                let characteristics =
-                    accessory.serviceCharacteristics |> Array.sortBy(fun x -> x.``type``)
+        Html.div [
+            prop.className SdPi.Item
+            prop.children [
+                Html.div [ prop.className SdPi.ItemLabel; prop.text "Characteristic" ]
+                Html.select [
+                    prop.classes [ SdPi.ItemValue; "select" ]
+                    prop.value(
+                        model.ActionSetting.CharacteristicType
+                        |> Option.defaultValue "DEFAULT"
+                    )
+                    prop.onChange(fun (value: string) ->
+                        let msg = if value = "DEFAULT" then None else Some value
+                        dispatch <| PiMsg.SelectCharacteristic msg)
+                    prop.children [
+                        Html.option [ prop.value "DEFAULT" ]
+                        let characteristics =
+                            accessory.serviceCharacteristics |> Array.sortBy(fun x -> x.``type``)
 
-                for x in characteristics do
-                    option [ Value x.``type`` ] [ str x.description ]
+                        for x in characteristics do
+                            Html.option [ prop.value x.``type``; prop.text x.description ]
+                    ]
+                ]
             ]
         ]
 
     let testButton() =
-        div [ Class "sdpi-item" ] [
-            button [ Class "sdpi-item-value"; OnClick(fun _ -> dispatch <| ToggleCharacteristic) ] [
-                str "Test configuration (Apply)"
+        Html.div [
+            prop.className SdPi.Item
+            prop.children [
+                Html.button [
+                    prop.className SdPi.ItemValue
+                    prop.onClick(fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
+                    prop.text "Test configuration (Apply)"
+                ]
             ]
         ]
 
-    let message icon color message =
-        details [ Class $"message {icon}" ] [ summary [ Style [ Color color ] ] [ str message ] ]
+    let message icon color (message: string) =
+        Html.details [
+            prop.classes [ "message"; icon ]
+            prop.children [ Html.summary [ prop.style [ style.color color ]; prop.text message ] ]
+        ]
 
     let successConfirmation = message "" "green" "Button successfully configured"
 
-    div [ Class "sdpi-wrapper" ] [
-        match model.IsLoading with
-        | Ok true -> message "info" "orange" "Waiting for Homebridge API response ..."
-        | _ ->
+    Feliz.Html.div [
+        prop.className SdPi.Wrapper
+        prop.children [
             match model.IsLoading with
-            | Error error -> message "caution" "red" error
-            | _ -> ()
+            | Ok true -> message "info" "orange" "Waiting for Homebridge API response ..."
+            | _ ->
+                match model.IsLoading with
+                | Error error -> message "caution" "red" error
+                | _ -> ()
 
-            match model.AuthInfo with
-            | Error(error) ->
-                if not <| System.String.IsNullOrEmpty(error) then
-                    message "caution" "red" error
+                match model.AuthInfo with
+                | Error(error) ->
+                    if not <| System.String.IsNullOrEmpty(error) then
+                        message "caution" "red" error
 
-                div [ Class "sdpi-item"; Type "field" ] [
-                    div [ Class "sdpi-item-label" ] [ str "Server" ]
-                    input [
-                        Class "sdpi-item-value"
-                        Value model.ServerInfo.Host
-                        Placeholder "e.g. http://192.168.0.1:8581"
-                        Required true
-                        Pattern "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$"
-                        OnChange(fun x -> dispatch <| UpdateServerInfo { model.ServerInfo with Host = x.Value })
-                    ]
-                ]
-
-                div [ Class "sdpi-item"; Type "field" ] [
-                    div [ Class "sdpi-item-label" ] [ str "UserName" ]
-                    input [
-                        Class "sdpi-item-value"
-                        Value model.ServerInfo.UserName
-                        Required true
-                        OnChange(fun x ->
-                            dispatch
-                            <| UpdateServerInfo
-                                { model.ServerInfo with
-                                    UserName = x.Value
-                                })
-                    ]
-                ]
-
-                div [ Class "sdpi-item"; Type "password" ] [
-                    div [ Class "sdpi-item-label" ] [ str "Password" ]
-                    input [
-                        Class "sdpi-item-value"
-                        Type "password"
-                        Value model.ServerInfo.Password
-                        Required true
-                        OnChange(fun x ->
-                            dispatch
-                            <| UpdateServerInfo
-                                { model.ServerInfo with
-                                    Password = x.Value
-                                })
-                    ]
-                ]
-
-                div [ Class "sdpi-item"; Type "button" ] [
-                    button [ Class "sdpi-item-value"; OnClick(fun _ -> dispatch <| Login true) ] [ str "Login" ]
-                ]
-            | Ok _ ->
-                match model.ActionType with
-                | None ->
-                    div [ Class "sdpi-item" ] [
-                        div [ Class "sdpi-item-label" ] [ str "Action Type" ]
-                        select [
-                            Class "sdpi-item-value select"
-                            Value(model.ActionType |> Option.defaultValue "DEFAULT")
-                            OnChange(fun x ->
-                                let msg = if x.Value = "DEFAULT" then None else Some x.Value
-                                dispatch <| SelectActionType msg)
-                        ] [
-                            option [ Value "DEFAULT" ] []
-                            option [ Value Domain.CONFIG_ACTION_NAME ] [ str "Config UI" ]
-                            option [ Value Domain.SWITCH_ACTION_NAME ] [ str "Switch" ]
-                            option [ Value Domain.SET_ACTION_NAME ] [ str "Set state" ]
+                    Html.div [
+                        prop.className SdPi.Item
+                        prop.type' "field"
+                        prop.children [
+                            Html.div [ prop.className SdPi.ItemLabel; prop.text "Server" ]
+                            Html.input [
+                                prop.className SdPi.ItemValue
+                                prop.value model.ServerInfo.Host
+                                prop.placeholder "e.g. http://192.168.0.1:8581"
+                                prop.required true
+                                prop.pattern(Regex "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$")
+                                prop.onChange(fun value ->
+                                    dispatch
+                                    <| PiMsg.UpdateServerInfo { model.ServerInfo with Host = value })
+                            ]
                         ]
                     ]
-                | Some(Domain.CONFIG_ACTION_NAME) -> successConfirmation
-                | Some(Domain.SWITCH_ACTION_NAME) ->
-                    yield! accessorySelector model.SwitchAccessories
 
-                    match model.ActionSetting.AccessoryId with
-                    | Some(uniqueId) when model.SwitchAccessories.ContainsKey uniqueId ->
-                        let accessory = model.SwitchAccessories |> Map.find uniqueId
-                        characteristicSelector accessory
+                    Html.div [
+                        prop.className SdPi.Item
+                        prop.type' "field"
+                        prop.children [
+                            Html.div [ prop.className SdPi.ItemLabel; prop.text "UserName" ]
+                            Html.input [
+                                prop.className SdPi.ItemValue
+                                prop.value model.ServerInfo.UserName
+                                prop.required true
+                                prop.onChange(fun value ->
+                                    dispatch
+                                    <| PiMsg.UpdateServerInfo
+                                        { model.ServerInfo with
+                                            UserName = value
+                                        })
+                            ]
+                        ]
+                    ]
 
-                        match model.ActionSetting.CharacteristicType with
-                        | Some characteristicType ->
-                            if model.IsDevMode then
-                                testButton()
+                    Html.div [
+                        prop.className SdPi.Item
+                        prop.type' "password"
+                        prop.children [
+                            Html.div [ prop.className SdPi.ItemLabel; prop.text "Password" ]
+                            Html.input [
+                                prop.className SdPi.ItemValue
+                                prop.type' "password"
+                                prop.value model.ServerInfo.Password
+                                prop.required true
+                                prop.onChange(fun value ->
+                                    dispatch
+                                    <| PiMsg.UpdateServerInfo
+                                        { model.ServerInfo with
+                                            Password = value
+                                        })
+                            ]
+                        ]
+                    ]
 
-                            successConfirmation
-                        //characteristicDetails characteristicType accessory
-                        | None -> ()
-                    | _ -> ()
-                | Some(Domain.SET_ACTION_NAME) ->
-                    yield! accessorySelector model.RangeAccessories
-
-                    match model.ActionSetting.AccessoryId with
-                    | Some(uniqueId) when model.RangeAccessories.ContainsKey uniqueId ->
-                        let accessory = model.RangeAccessories |> Map.find uniqueId
-                        characteristicSelector accessory
-
-                        match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
-                        | Some characteristicType, Some targetValue ->
-                            let ch = accessory |> getCharacteristic characteristicType
-
-                            match ch.minValue, ch.minStep, ch.maxValue with
-                            | Some minValue, Some minStep, Some maxValue ->
-                                div [ Type "range"; Class "sdpi-item" ] [
-                                    div [ Class "sdpi-item-label" ] [ str $"Target value ({targetValue})" ]
-                                    div [ Class "sdpi-item-value" ] [
-                                        span [ Class "clickable"; Value minValue ] [ str $"{minValue}" ]
-                                        input [
-                                            Type "range"
-                                            Min minValue
-                                            Max maxValue
-                                            Step minStep
-                                            Value targetValue
-                                            OnInput(fun x ->
-                                                let payload = Some(float x.Value)
-                                                dispatch <| ChangeTargetValue payload)
-                                        ]
-                                        span [ Class "clickable"; Value maxValue ] [ str $"{maxValue}" ]
+                    Html.div [
+                        prop.className SdPi.Item
+                        prop.type' "button"
+                        prop.children [
+                            Html.button [
+                                prop.className SdPi.ItemValue
+                                prop.onClick(fun _ -> dispatch <| PiMsg.Login true)
+                                prop.text "Login"
+                            ]
+                        ]
+                    ]
+                | Ok _ ->
+                    match model.ActionType with
+                    | None ->
+                        Html.div [
+                            prop.className SdPi.Item
+                            prop.children [
+                                Html.div [ prop.className SdPi.ItemLabel; prop.text "Action Type" ]
+                                Html.select [
+                                    prop.classes [ SdPi.ItemValue; "select" ]
+                                    prop.value(model.ActionType |> Option.defaultValue "DEFAULT")
+                                    prop.onChange(fun value ->
+                                        let msg = if value = "DEFAULT" then None else Some value
+                                        dispatch <| PiMsg.SelectActionType msg)
+                                    prop.children [
+                                        Html.option [ prop.value "DEFAULT" ]
+                                        Html.option [ prop.value Domain.CONFIG_ACTION_NAME; prop.text "Config UI" ]
+                                        Html.option [ prop.value Domain.SWITCH_ACTION_NAME; prop.text "Switch" ]
+                                        Html.option [ prop.value Domain.SET_ACTION_NAME; prop.text "Set state" ]
                                     ]
                                 ]
+                            ]
+                        ]
+                    | Some(Domain.CONFIG_ACTION_NAME) -> successConfirmation
+                    | Some(Domain.SWITCH_ACTION_NAME) ->
+                        yield! accessorySelector model.SwitchAccessories
 
+                        match model.ActionSetting.AccessoryId with
+                        | Some(uniqueId) when model.SwitchAccessories.ContainsKey uniqueId ->
+                            let accessory = model.SwitchAccessories |> Map.find uniqueId
+                            characteristicSelector accessory
+
+                            match model.ActionSetting.CharacteristicType with
+                            | Some characteristicType ->
                                 if model.IsDevMode then
                                     testButton()
 
                                 successConfirmation
+                            //characteristicDetails characteristicType accessory
+                            | None -> ()
+                        | _ -> ()
+                    | Some(Domain.SET_ACTION_NAME) ->
+                        yield! accessorySelector model.RangeAccessories
+
+                        match model.ActionSetting.AccessoryId with
+                        | Some(uniqueId) when model.RangeAccessories.ContainsKey uniqueId ->
+                            let accessory = model.RangeAccessories |> Map.find uniqueId
+                            characteristicSelector accessory
+
+                            match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
+                            | Some characteristicType, Some targetValue ->
+                                let ch = accessory |> getCharacteristic characteristicType
+
+                                match ch.minValue, ch.minStep, ch.maxValue with
+                                | Some minValue, Some minStep, Some maxValue ->
+                                    Html.div [
+                                        prop.type' "range"
+                                        prop.className SdPi.Item
+                                        prop.children [
+                                            Html.div [
+                                                prop.className SdPi.ItemLabel
+                                                prop.text $"Target value ({targetValue})"
+                                            ]
+                                            Html.div [
+                                                prop.className SdPi.ItemValue
+                                                prop.children [
+                                                    Html.span [
+                                                        prop.className "clickable"
+                                                        prop.value minValue
+                                                        prop.text $"{minValue}"
+                                                    ]
+                                                    Html.input [
+                                                        prop.type' "range"
+                                                        prop.min minValue
+                                                        prop.max maxValue
+                                                        prop.step minStep
+                                                        prop.value targetValue
+                                                        prop.onChange(fun (x: float) ->
+                                                            let payload = Some(x)
+                                                            dispatch <| PiMsg.ChangeTargetValue payload)
+                                                    ]
+                                                    Html.span [
+                                                        prop.className "clickable"
+                                                        prop.value maxValue
+                                                        prop.text $"{maxValue}"
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+
+                                    if model.IsDevMode then
+                                        testButton()
+
+                                    successConfirmation
+                                | _ -> ()
                             | _ -> ()
                         | _ -> ()
-                    | _ -> ()
-                | Some ty -> p [] [ str $"Unsupported action type {ty}" ]
+                    | Some ty -> Html.p [ prop.text $"Unsupported action type {ty}" ]
 
-                div [ Class "sdpi-item"; Type "button" ] [
-                    button [ Class "sdpi-item-value"; OnClick(fun _ -> dispatch <| Logout) ] [ str "Logout" ]
-                ]
+                    Html.div [
+                        prop.className SdPi.Item
+                        prop.type' "button"
+                        prop.children [
+                            Html.button [
+                                prop.className SdPi.ItemValue
+                                prop.onClick(fun _ -> dispatch <| PiMsg.Logout)
+                                prop.text "Logout"
+                            ]
+                        ]
+                    ]
+        ]
     ]

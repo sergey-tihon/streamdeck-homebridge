@@ -56,7 +56,7 @@ let connectElgatoStreamDeckSocket
             [ [ "ws" ], sub ]
 
 
-        Program.mkProgram (PiView.init false) PiView.update PiView.view
+        Program.mkProgram (PiView.init false) PiView.update PiView.render
         |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
@@ -64,7 +64,7 @@ let connectElgatoStreamDeckSocket
 
 
 let startPropertyInspectorApp() =
-    Program.mkProgram (PiView.init true) PiView.update PiView.view
+    Program.mkProgram (PiView.init true) PiView.update PiView.render
 #if DEBUG
     |> Program.withDebugger
 #endif
