@@ -49,12 +49,11 @@ let connectElgatoStreamDeckSocket
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
 
-            Cmd.ofSub sub
-        //     { new System.IDisposable with
-        //         member _.Dispose() = ()
-        //     }
+                { new System.IDisposable with
+                    member _.Dispose() = ()
+                }
 
-        // [ [ "ws" ], sub ]
+            [ [ "ws" ], sub ]
 
 
         Program.mkProgram (PiView.init false) PiView.update PiView.render

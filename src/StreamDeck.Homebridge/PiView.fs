@@ -160,7 +160,7 @@ let update (msg: PiMsg) (model: PiModel) =
             }
             |> Async.StartImmediate
 
-        { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
+        { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
     | PiMsg.SetLoginResult authInfo ->
         let cmd =
             match authInfo with
@@ -225,7 +225,7 @@ let update (msg: PiMsg) (model: PiModel) =
             }
             |> Async.StartImmediate
 
-        { model with IsLoading = Ok true }, Cmd.ofSub delayedCmd
+        { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
     | PiMsg.SetData(accessories, layout) ->
         let toMap(accessories: Client.AccessoryDetails[]) =
             accessories |> Array.map(fun x -> x.uniqueId, x) |> Map.ofArray
@@ -338,7 +338,7 @@ let update (msg: PiMsg) (model: PiModel) =
                 | _ -> console.error("Unexpected action ", model.ActionType)
             | _ -> ()
 
-        model, Cmd.ofSub delayedCmd
+        model, Cmd.ofEffect delayedCmd
 
 let render (model: PiModel) (dispatch: PiMsg -> unit) =
 
