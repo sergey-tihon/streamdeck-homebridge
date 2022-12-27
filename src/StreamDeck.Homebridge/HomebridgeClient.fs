@@ -1,6 +1,5 @@
 module StreamDeck.Homebridge.Client
 
-open Browser
 open Fable.SimpleHttp
 open Fable.SimpleJson
 
@@ -80,107 +79,160 @@ and BridgeInfo = {
     pin: string
 }
 
-let inline private sendWithAuth (auth: AuthResult) (req: HttpRequest) =
-    req
-    |> Http.headers [
-        Headers.contentType "application/json"
-        Headers.authorization $"{auth.token_type} {auth.access_token}"
-    ]
-    |> Http.send
-
-let authenticate(serverInfo: Domain.GlobalSettings) = async {
-    let body =
-        Json.serialize
-            {|
-                username = serverInfo.UserName
-                password = serverInfo.Password
-            |}
-
-    let! response =
-        Http.request $"{serverInfo.Host}/api/auth/login"
-        |> Http.method POST
-        |> Http.content(BodyContent.Text body)
-        |> Http.header(Headers.contentType "application/json")
-        |> Http.withTimeout 5_000
+module private Api =
+    let inline private sendWithAuth (auth: AuthResult) (req: HttpRequest) =
+        req
+        |> Http.headers [
+            Headers.contentType "application/json"
+            Headers.authorization $"{auth.token_type} {auth.access_token}"
+        ]
         |> Http.send
 
-    return
-        if response.statusCode = 201 then
-            Json.tryParseAs<AuthResult> response.responseText
-        else
-            let msg =
-                $"Unsuccessful login: Server is unavailable or login/password is incorrect. {response.responseText}"
+    let authenticate(serverInfo: Domain.GlobalSettings) = async {
+        let body =
+            Json.serialize
+                {|
+                    username = serverInfo.UserName
+                    password = serverInfo.Password
+                |}
 
-            Error msg
-}
+        let! response =
+            Http.request $"{serverInfo.Host}/api/auth/login"
+            |> Http.method POST
+            |> Http.content(BodyContent.Text body)
+            |> Http.header(Headers.contentType "application/json")
+            |> Http.withTimeout 5_000
+            |> Http.send
 
-let getConfigEditorInfo host (auth: AuthResult) = async {
-    let! response = Http.request $"%s{host}/api/config-editor" |> sendWithAuth auth
+        return
+            if response.statusCode = 201 then
+                Json.tryParseAs<AuthResult> response.responseText
+            else
+                let msg =
+                    $"Unsuccessful login: Server is unavailable or login/password is incorrect. {response.responseText}"
 
-    return
-        if response.statusCode = 200 then
-            Json.tryParseAs<ConfigEditorInfo> response.responseText
-        else
-            Error($"Cannot get config editor info from {host}. {response.responseText}")
-}
+                Error msg
+    }
 
-let getAccessories host (auth: AuthResult) = async {
-    let! response =
-        Http.request $"%s{host}/api/accessories"
-        |> Http.withTimeout 20_000
-        |> sendWithAuth auth
+    let getAccessories host (auth: AuthResult) = async {
+        let! response =
+            Http.request $"%s{host}/api/accessories"
+            |> Http.withTimeout 20_000
+            |> sendWithAuth auth
 
-    return
-        if response.statusCode = 200 then
-            Json.tryParseAs<AccessoryDetails[]> response.responseText
-        else
-            Error($"Cannot get accessories list from {host}. {response.responseText}")
-}
+        return
+            if response.statusCode = 200 then
+                Json.tryParseAs<AccessoryDetails[]> response.responseText
+            else
+                Error($"Cannot get accessories list from {host}. {response.responseText}")
+    }
 
-let getAccessoriesLayout host (auth: AuthResult) = async {
-    let! response =
-        Http.request $"%s{host}/api/accessories/layout"
-        |> Http.withTimeout 20_000
-        |> sendWithAuth auth
+    let getAccessoriesLayout host (auth: AuthResult) = async {
+        let! response =
+            Http.request $"%s{host}/api/accessories/layout"
+            |> Http.withTimeout 20_000
+            |> sendWithAuth auth
 
-    return
-        if response.statusCode = 200 then
-            Json.tryParseAs<RoomLayout[]> response.responseText
-        else
-            Error($"Cannot get room layout from {host}. {response.responseText}")
-}
+        return
+            if response.statusCode = 200 then
+                Json.tryParseAs<RoomLayout[]> response.responseText
+            else
+                Error($"Cannot get room layout from {host}. {response.responseText}")
+    }
 
-let setAccessoryCharacteristic host (auth: AuthResult) (uniqueId: string) (characteristicType: string) (value: obj) = async {
-    let body =
-        Json.serialize
-            {|
-                characteristicType = characteristicType
-                value = value
-            |}
+    let setAccessoryCharacteristic
+        host
+        (auth: AuthResult)
+        (uniqueId: string)
+        (characteristicType: string)
+        (value: obj)
+        =
+        async {
+            let body =
+                Json.serialize
+                    {|
+                        characteristicType = characteristicType
+                        value = value
+                    |}
 
-    let! response =
-        Http.request $"%s{host}/api/accessories/{uniqueId}"
-        |> Http.method PUT
-        |> Http.content(BodyContent.Text body)
-        |> sendWithAuth auth
+            let! response =
+                Http.request $"%s{host}/api/accessories/{uniqueId}"
+                |> Http.method PUT
+                |> Http.content(BodyContent.Text body)
+                |> sendWithAuth auth
 
-    return
-        if response.statusCode = 200 then
-            Json.tryParseAs<AccessoryDetails> response.responseText
-        else
-            Error(
-                $"Cannot set accessory '{uniqueId}' characteristic '{characteristicType}' to '{value}'. {response.responseText}"
-            )
-}
+            return
+                if response.statusCode = 200 then
+                    Json.tryParseAs<AccessoryDetails> response.responseText
+                else
+                    Error(
+                        $"Cannot set accessory '{uniqueId}' characteristic '{characteristicType}' to '{value}'. {response.responseText}"
+                    )
+        }
 
-let getAccessory host (auth: AuthResult) (uniqueId: string) = async {
-    let! response =
-        Http.request $"%s{host}/api/accessories/{uniqueId}"
-        |> sendWithAuth auth
+    let getAccessory host (auth: AuthResult) (uniqueId: string) = async {
+        let! response =
+            Http.request $"%s{host}/api/accessories/{uniqueId}"
+            |> sendWithAuth auth
 
-    return
-        if response.statusCode = 200 then
-            Json.tryParseAs<AccessoryDetails> response.responseText
-        else
-            Error($"Cannot get accessory by id '{uniqueId}'. {response.responseText}")
-}
+        return
+            if response.statusCode = 200 then
+                Json.tryParseAs<AccessoryDetails> response.responseText
+            else
+                Error($"Cannot get accessory by id '{uniqueId}'. {response.responseText}")
+    }
+
+
+type HomebridgeClient(settings: Domain.GlobalSettings) =
+    let mutable expiresAt = System.DateTime.Now
+    let mutable authResult = None
+
+    let getAuth() = async {
+        let now = System.DateTime.Now
+
+        match authResult with
+        | Some res when now < expiresAt -> return Ok res
+        | _ ->
+            let! resp = Api.authenticate settings
+
+            match resp with
+            | Ok authResult' ->
+                authResult <- Some authResult'
+                let lifetime = System.TimeSpan.FromSeconds(float(authResult'.expires_in - 10 * 60))
+                expiresAt <- now + lifetime
+
+                return Ok authResult'
+            | Error err -> return Error err
+    }
+
+    member _.Host = settings.Host
+
+    member _.TestAuth() = async {
+        match! getAuth() with
+        | Ok auth -> return Ok()
+        | Error err -> return Error err
+    }
+
+    member _.GetAccessories() = async {
+        match! getAuth() with
+        | Ok auth -> return! Api.getAccessories settings.Host auth
+        | Error err -> return Error err
+    }
+
+    member _.GetAccessoriesLayout() = async {
+        match! getAuth() with
+        | Ok auth -> return! Api.getAccessoriesLayout settings.Host auth
+        | Error err -> return Error err
+    }
+
+    member _.SetAccessoryCharacteristic (uniqueId: string) (characteristicType: string) (value: obj) = async {
+        match! getAuth() with
+        | Ok auth -> return! Api.setAccessoryCharacteristic settings.Host auth uniqueId characteristicType value
+        | Error err -> return Error err
+    }
+
+    member _.GetAccessory(uniqueId: string) = async {
+        match! getAuth() with
+        | Ok auth -> return! Api.getAccessory settings.Host auth uniqueId
+        | Error err -> return Error err
+    }

@@ -13,7 +13,7 @@ type PiModel = {
     IsDevMode: bool
     ReplyAgent: MailboxProcessor<PiOutEvent> option
     ServerInfo: Domain.GlobalSettings
-    AuthInfo: Result<Client.AuthResult, string>
+    Client: Result<Client.HomebridgeClient, string>
 
     IsLoading: Result<bool, string>
     Accessories: Map<string, Client.AccessoryDetails>
@@ -33,7 +33,7 @@ type PiMsg =
 
     | UpdateServerInfo of Domain.GlobalSettings
     | Login of manual: bool
-    | SetLoginResult of Result<Client.AuthResult, string>
+    | SetHomebridgeClient of Result<Client.HomebridgeClient, string>
     | Logout
     | GetData
     | SetData of Client.AccessoryDetails[] * Client.RoomLayout[]
@@ -55,7 +55,7 @@ let init isDevMode =
                     UserName = "admin"
                     Password = "admin"
                 }
-            AuthInfo = Error null
+            Client = Error null
             IsLoading = Ok false
             Accessories = Map.empty
             SwitchAccessories = Map.empty
@@ -132,7 +132,7 @@ let update (msg: PiMsg) (model: PiModel) =
         let model' =
             { model with
                 ServerInfo = settings
-                AuthInfo = Error null
+                Client = Error null
             }
 
         model', Cmd.ofMsg(PiMsg.Login false)
@@ -143,53 +143,56 @@ let update (msg: PiMsg) (model: PiModel) =
         let model' =
             { model with
                 ServerInfo = serverInfo
-                AuthInfo = Error null
+                Client = Error null
             }
 
         model', Cmd.none
     | PiMsg.Login manual ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
             async {
-                let! result = Client.authenticate model.ServerInfo
+                let client = Client.HomebridgeClient(model.ServerInfo)
+                let! result = client.TestAuth()
 
                 match manual, result with
                 | true, Ok _ -> model |> sdDispatch(PiOutEvent.SetGlobalSettings model.ServerInfo)
                 | _ -> ()
 
-                dispatch <| PiMsg.SetLoginResult result
+                result
+                |> Result.map(fun () -> client)
+                |> PiMsg.SetHomebridgeClient
+                |> dispatch
+
             }
             |> Async.StartImmediate
 
         { model with IsLoading = Ok true }, Cmd.ofEffect delayedCmd
-    | PiMsg.SetLoginResult authInfo ->
+    | PiMsg.SetHomebridgeClient client ->
         let cmd =
-            match authInfo with
+            match client with
             | Ok _ -> Cmd.ofMsg PiMsg.GetData
             | _ -> Cmd.none
 
         let model' =
             { model with
-                AuthInfo = authInfo
+                Client = client
                 IsLoading = Ok false
             }
 
         model', cmd
-    | PiMsg.Logout -> { model with AuthInfo = Error null }, Cmd.none
+    | PiMsg.Logout -> { model with Client = Error null }, Cmd.none
     | PiMsg.GetData ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
             async {
-                match model.AuthInfo with
-                | Ok auth ->
-                    let! layout = Client.getAccessoriesLayout model.ServerInfo.Host auth
+                match model.Client with
+                | Ok client ->
+                    let! layout = client.GetAccessoriesLayout()
 
                     let layout =
                         match layout with
                         | Ok layout -> layout
                         | Error err -> [||]
 
-                    let! accessories = Client.getAccessories model.ServerInfo.Host auth
-
-                    match accessories with
+                    match! client.GetAccessories() with
                     | Ok(accessories) ->
                         let devicesInLayout =
                             layout
@@ -291,26 +294,18 @@ let update (msg: PiMsg) (model: PiModel) =
         model', Cmd.none
     | PiMsg.ToggleCharacteristic ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
-            match model.AuthInfo, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
-            | Ok(authInfo), Some(selectedAccessoryId), Some(characteristicType) ->
+            match model.Client, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
+            | Ok(client), Some(selectedAccessoryId), Some(characteristicType) ->
                 match model.ActionType with
                 | Some(Domain.ActionName.Switch) ->
                     async {
-                        let! accessory = Client.getAccessory model.ServerInfo.Host authInfo selectedAccessoryId
-
-                        match accessory with
+                        match! client.GetAccessory selectedAccessoryId with
                         | Ok accessory ->
-                            let ch = accessory |> getCharacteristic characteristicType
-                            let currentValue = ch.value.Value :?> int
-                            let targetValue = 1 - currentValue
-
                             let! accessory' =
-                                Client.setAccessoryCharacteristic
-                                    model.ServerInfo.Host
-                                    authInfo
-                                    selectedAccessoryId
-                                    characteristicType
-                                    targetValue
+                                let ch = accessory |> getCharacteristic characteristicType
+                                let currentValue = ch.value.Value :?> int
+                                let targetValue = 1 - currentValue
+                                client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
 
                             match accessory' with
                             | Ok accessory' -> model |> sdDispatch(PiOutEvent.SendToPlugin accessory')
@@ -320,15 +315,9 @@ let update (msg: PiMsg) (model: PiModel) =
                     |> Async.StartImmediate
                 | Some(Domain.ActionName.Set) ->
                     async {
-                        let targetValue = model.ActionSetting.TargetValue.Value
-
                         let! accessory' =
-                            Client.setAccessoryCharacteristic
-                                model.ServerInfo.Host
-                                authInfo
-                                selectedAccessoryId
-                                characteristicType
-                                targetValue
+                            let targetValue = model.ActionSetting.TargetValue.Value
+                            client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
 
                         match accessory' with
                         | Ok accessory' -> model |> sdDispatch(PiOutEvent.SendToPlugin accessory')
@@ -466,7 +455,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                 | Error error -> message "caution" "red" error
                 | _ -> ()
 
-                match model.AuthInfo with
+                match model.Client with
                 | Error(error) ->
                     if not <| System.String.IsNullOrEmpty(error) then
                         message "caution" "red" error
