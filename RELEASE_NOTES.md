@@ -1,7 +1,10 @@
-## 1.4.0 - 26 Dec 2022
+## 1.4.0 - 2 Jan 2023
+- Added configurable interval for Switch action state auto-update #7
+- Removed analytics #20
+- Removed warning response when Homebridge does not change state immediately
+- Auth token caching
 - F# SDK aligned with [Changes in Stream Deck 6.0](https://developer.elgato.com/documentation/stream-deck/sdk/changelog/)
-- Removed analytics
-- Dependencies update
+- Dependencies update (Fable 4, React 18, Feliz 2, Elmish 4 and more)
 
 ## 1.3.1 - 27 Feb 2022
 - Fix version in manifest.json

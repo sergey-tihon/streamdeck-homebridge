@@ -54,6 +54,7 @@ let init isDevMode =
                     Host = "http://192.168.0.55:8581"
                     UserName = "admin"
                     Password = "admin"
+                    UpdateInterval = 5
                 }
             Client = Error null
             IsLoading = Ok false
@@ -508,14 +509,42 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 prop.value model.ServerInfo.Password
                                 prop.required true
                                 prop.onChange(fun value ->
-                                    dispatch
-                                    <| PiMsg.UpdateServerInfo
+                                    let settings =
                                         { model.ServerInfo with
                                             Password = value
-                                        })
+                                        }
+
+                                    dispatch <| PiMsg.UpdateServerInfo settings)
                             ]
                         ]
                     ]
+
+                    Html.div [
+                        prop.className SdPi.Item
+                        prop.children [
+                            Html.div [ prop.className SdPi.ItemLabel; prop.text "Update" ]
+                            Html.select [
+                                prop.classes [ SdPi.ItemValue; "select" ]
+                                prop.value model.ServerInfo.UpdateInterval
+                                prop.onChange(fun (value: string) ->
+                                    let settings =
+                                        { model.ServerInfo with
+                                            UpdateInterval = int(value)
+                                        }
+
+                                    dispatch <| PiMsg.UpdateServerInfo settings)
+                                prop.children [
+                                    Html.option [ prop.value "0"; prop.text "Never" ]
+                                    Html.option [ prop.value "1"; prop.text "Every second" ]
+                                    Html.option [ prop.value "2"; prop.text "Every 2 seconds" ]
+                                    Html.option [ prop.value "5"; prop.text "Every 5 seconds" ]
+                                    Html.option [ prop.value "10"; prop.text "Every 10 seconds" ]
+                                    Html.option [ prop.value "60"; prop.text "Every minute" ]
+                                ]
+                            ]
+                        ]
+                    ]
+
 
                     Html.div [
                         prop.className SdPi.Item

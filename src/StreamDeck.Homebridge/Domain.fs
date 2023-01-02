@@ -6,6 +6,7 @@ type GlobalSettings = {
     Host: string
     UserName: string
     Password: string
+    UpdateInterval: int
 }
 
 type ActionSetting = {
