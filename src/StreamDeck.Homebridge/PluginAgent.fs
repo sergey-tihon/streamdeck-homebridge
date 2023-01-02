@@ -4,36 +4,37 @@ open Browser.Dom
 open StreamDeck.SDK
 open StreamDeck.SDK.PluginModel
 
-let processKeyUp
-    (replyAgent: MailboxProcessor<PluginOutEvent>)
-    (client: Client.HomebridgeClient option)
-    (event: Dto.Event)
-    (payload: Dto.ActionPayload)
-    =
+type PluginInnerState = {
+    replyAgent: MailboxProcessor<PluginOutEvent>
+    client: Client.HomebridgeClient option
+    characteristics: Map<string * string, Client.AccessoryServiceCharacteristic>
+    visibleActions: Map<string, Domain.ActionSetting * int option>
+    timerId: float option
+}
 
+let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.ActionPayload) =
     let onError(message: string) =
-        console.warn(message)
-        replyAgent.Post <| PluginOutEvent.LogMessage message
-        replyAgent.Post <| PluginOutEvent.ShowAlert event.context
+        console.error(message)
+        state.replyAgent.Post <| PluginOutEvent.LogMessage message
+        state.replyAgent.Post <| PluginOutEvent.ShowAlert event.context
 
     async {
         match event.action with
         | Domain.ActionName.ConfigUi ->
-            match client with
-            | Some(client) -> replyAgent.Post <| PluginOutEvent.OpenUrl client.Host
+            match state.client with
+            | Some(client) -> state.replyAgent.Post <| PluginOutEvent.OpenUrl client.Host
             | _ -> onError "Global config is not provided"
         | Domain.ActionName.Switch ->
             let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
 
-            match client, actionSettings with
+            match state.client, actionSettings with
             | Some(client),
               Some({
-                       AccessoryId = Some(accessoryId)
-                       CharacteristicType = Some(characteristicType)
+                       AccessoryId = Some accessoryId
+                       CharacteristicType = Some characteristicType
                    }) ->
-                match! client.GetAccessory accessoryId with
-                | Ok accessory ->
-                    let ch = accessory |> PiView.getCharacteristic characteristicType
+                match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
+                | Some(ch) ->
                     let currentValue = ch.value.Value :?> int
                     let targetValue = 1 - currentValue
 
@@ -43,22 +44,22 @@ let processKeyUp
                         let currentValue' = ch'.value.Value :?> int
 
                         if currentValue = currentValue' then
-                            replyAgent.Post <| PluginOutEvent.ShowAlert event.context
+                            state.replyAgent.Post <| PluginOutEvent.ShowAlert event.context
                         else
-                            replyAgent.Post
+                            state.replyAgent.Post
                             <| PluginOutEvent.SetState(event.context, currentValue')
                     | Error e -> onError e
-                | Error e -> onError $"Cannot find accessory by id '{accessoryId}'. {e}"
+                | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
             | _ -> onError "Action is not properly configured"
         | Domain.ActionName.Set ->
             let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
 
-            match client, actionSettings with
+            match state.client, actionSettings with
             | Some(client),
               Some({
-                       AccessoryId = Some(accessoryId)
-                       CharacteristicType = Some(characteristicType)
-                       TargetValue = Some(targetValue)
+                       AccessoryId = Some accessoryId
+                       CharacteristicType = Some characteristicType
+                       TargetValue = Some targetValue
                    }) ->
                 match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                 | Ok accessory ->
@@ -66,43 +67,152 @@ let processKeyUp
                     let currentValue = ch.value.Value :?> float
 
                     if abs(targetValue - currentValue) > 1e-8 then
-                        replyAgent.Post <| PluginOutEvent.ShowAlert event.context
+                        state.replyAgent.Post <| PluginOutEvent.ShowAlert event.context
                     else
-                        replyAgent.Post <| PluginOutEvent.ShowOk event.context
+                        state.replyAgent.Post <| PluginOutEvent.ShowOk event.context
                 | Error e -> onError e
             | _ -> onError "Action is not properly configured"
         | _ -> onError $"Action {event.action} is not yet supported"
     }
 
+let updateState(state: PluginInnerState) = async {
+    let! accessories =
+        state.client
+        |> Option.map(fun client -> client.GetAccessories())
+        |> Option.defaultValue(async { return Error("Homedbridge client is not set yet") })
+
+    let characteristics =
+        match accessories with
+        | Error _ -> state.characteristics
+        | Ok(accessories) ->
+            accessories
+            |> Array.collect(fun accessory ->
+                accessory.serviceCharacteristics
+                |> Array.map(fun characteristic ->
+                    let key = accessory.uniqueId, characteristic.``type``
+                    key, characteristic))
+            |> Map.ofArray
+
+
+    let visibleActions =
+        state.visibleActions
+        |> Map.map(fun context value ->
+            match value with
+            | {
+                  AccessoryId = Some accessoryId
+                  CharacteristicType = Some characteristicType
+              },
+              Some actionState ->
+                match characteristics |> Map.tryFind(accessoryId, characteristicType) with
+                | Some(ch) when ch.value.IsSome ->
+                    let chValue = ch.value.Value :?> int
+
+                    if actionState <> chValue then
+                        state.replyAgent.Post <| PluginOutEvent.SetState(context, chValue)
+                        (fst value, Some(chValue))
+                    else
+                        value
+                | _ -> value
+            | _ -> value)
+
+    return
+        { state with
+            characteristics = characteristics
+            visibleActions = visibleActions
+        }
+}
+
 let createPluginAgent() : MailboxProcessor<PluginInEvent> =
-    MailboxProcessor.Start(fun inbox ->
-        let rec idle() = async {
-            let! msg = inbox.Receive()
+    let mutable agent: MailboxProcessor<PluginInEvent> option = None
 
-            match msg with
-            | PluginInEvent.Connected(_, replyAgent) ->
-                replyAgent.Post <| PluginOutEvent.GetGlobalSettings
-                return! loop replyAgent None
-            | _ ->
-                console.warn($"Idle plugin agent received unexpected message %A{msg}", msg)
-                return! idle()
-        }
+    agent <-
+        MailboxProcessor.Start(fun inbox ->
+            let rec idle() = async {
+                let! msg = inbox.Receive()
 
-        and loop replyAgent client = async {
-            let! msg = inbox.Receive()
-            console.log($"Plugin message is: %A{msg}", msg)
+                match msg with
+                | PluginInEvent.Connected(_, replyAgent) ->
+                    replyAgent.Post <| PluginOutEvent.GetGlobalSettings
 
-            match msg with
-            | PluginInEvent.DidReceiveGlobalSettings settings ->
-                let client =
-                    Domain.tryParse<Domain.GlobalSettings>(settings)
-                    |> Option.map(Client.HomebridgeClient)
+                    let state = {
+                        replyAgent = replyAgent
+                        client = None
+                        characteristics = Map.empty
+                        visibleActions = Map.empty
+                        timerId = None
+                    }
 
-                return! loop replyAgent client
-            | PluginInEvent.KeyUp(event, payload) ->
-                do! processKeyUp replyAgent client event payload
-                return! loop replyAgent client
-            | _ -> return! loop replyAgent client
-        }
+                    return! loop state
+                | _ ->
+                    console.warn($"Idle plugin agent received unexpected message %A{msg}", msg)
+                    return! idle()
+            }
 
-        idle())
+            and loop state = async {
+                let! msg = inbox.Receive()
+                console.log($"Plugin message is: %A{msg}", msg)
+
+                match msg with
+                | PluginInEvent.DidReceiveGlobalSettings settings ->
+                    let state =
+                        { state with
+                            client =
+                                Domain.tryParse<Domain.GlobalSettings>(settings)
+                                |> Option.map(Client.HomebridgeClient)
+                        }
+
+                    return! loop state
+                | PluginInEvent.KeyUp(event, payload) ->
+                    let! state = updateState state
+                    do! processKeyUp state event payload
+                    // TODO: update state of changed action
+                    return! loop state
+                | PluginInEvent.SystemDidWakeUp ->
+                    // Fake action triggered by timer to update buttons state
+                    let! state = updateState state
+                    return! loop state
+                | PluginInEvent.WillAppear(event, payload) ->
+                    let state =
+                        { state with
+                            visibleActions =
+                                match Domain.tryParse<Domain.ActionSetting>(payload.settings) with
+                                | Some(actionSetting) when event.action = Domain.ActionName.Switch ->
+                                    state.visibleActions
+                                    |> Map.add event.context (actionSetting, payload.state)
+                                | _ -> state.visibleActions
+                            timerId =
+                                match state.timerId with
+                                | Some _ -> state.timerId
+                                | None ->
+                                    Some(
+                                        window.setInterval(
+                                            (fun _ -> agent.Value.Post(PluginInEvent.SystemDidWakeUp)),
+                                            5_000,
+                                            [||]
+                                        )
+                                    )
+                        }
+
+                    return! loop state
+                | PluginInEvent.WillDisappear(event, _) ->
+                    let actions = state.visibleActions |> Map.remove event.context
+
+                    let state =
+                        { state with
+                            visibleActions = actions
+                            timerId =
+                                match state.timerId with
+                                | Some timerId when actions.IsEmpty ->
+                                    window.clearInterval timerId
+                                    None
+                                | _ -> state.timerId
+                        }
+
+                    return! loop state
+                | _ -> return! loop state
+            }
+
+            idle())
+        |> Some
+
+    agent.Value

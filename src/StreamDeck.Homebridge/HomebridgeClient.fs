@@ -209,7 +209,7 @@ type HomebridgeClient(settings: Domain.GlobalSettings) =
 
     member _.TestAuth() = async {
         match! getAuth() with
-        | Ok auth -> return Ok()
+        | Ok _ -> return Ok()
         | Error err -> return Error err
     }
 
