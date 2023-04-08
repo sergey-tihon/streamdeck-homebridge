@@ -49,13 +49,12 @@ let init isDevMode =
         let state = {
             IsDevMode = isDevMode
             ReplyAgent = None
-            ServerInfo =
-                {
-                    Host = "http://192.168.0.55:8581"
-                    UserName = "admin"
-                    Password = "admin"
-                    UpdateInterval = 5
-                }
+            ServerInfo = {
+                Host = "http://192.168.0.55:8581"
+                UserName = "admin"
+                Password = "admin"
+                UpdateInterval = 5
+            }
             Client = Error null
             IsLoading = Ok false
             Accessories = Map.empty
@@ -63,12 +62,11 @@ let init isDevMode =
             RangeAccessories = Map.empty
             Layout = [||]
             ActionType = None
-            ActionSetting =
-                {
-                    AccessoryId = None
-                    CharacteristicType = None
-                    TargetValue = None
-                }
+            ActionSetting = {
+                AccessoryId = None
+                CharacteristicType = None
+                TargetValue = None
+            }
         }
 
         state, Cmd.none
