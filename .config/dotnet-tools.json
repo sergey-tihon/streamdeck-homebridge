@@ -9,19 +9,19 @@
       ]
     },
     "paket": {
-      "version": "7.2.0",
+      "version": "7.2.1",
       "commands": [
         "paket"
       ]
     },
     "fable": {
-      "version": "4.0.0-theta-018",
+      "version": "4.0.5",
       "commands": [
         "fable"
       ]
     },
     "fantomas": {
-      "version": "5.1.5",
+      "version": "5.2.4",
       "commands": [
         "fantomas"
       ]
