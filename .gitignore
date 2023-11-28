@@ -456,3 +456,4 @@ $RECYCLE.BIN/
 # Custom
 temp/
 *.fs.js
+fable_modules/
