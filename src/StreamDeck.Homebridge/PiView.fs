@@ -71,10 +71,10 @@ let init isDevMode =
 
         state, Cmd.none
 
-let filterCharacteristics filter (accessory: Client.AccessoryDetails) =
-    { accessory with
+let filterCharacteristics filter (accessory: Client.AccessoryDetails) = {
+    accessory with
         serviceCharacteristics = accessory.serviceCharacteristics |> Array.filter filter
-    }
+}
 
 let hasValue(ch: Client.AccessoryServiceCharacteristic) =
     match ch.value with
@@ -112,11 +112,11 @@ let sdDispatch msg (model: PiModel) =
 let update (msg: PiMsg) (model: PiModel) =
     match msg with
     | PiMsg.PiConnected(startArgs, replyAgent) ->
-        let model' =
-            { model with
+        let model' = {
+            model with
                 ReplyAgent = Some replyAgent
                 ActionType = startArgs.ActionInfo |> Option.map(fun x -> x.action)
-            }
+        }
 
         let model' =
             startArgs.ActionInfo
@@ -128,22 +128,22 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model', Cmd.none
     | PiMsg.GlobalSettingsReceived settings ->
-        let model' =
-            { model with
+        let model' = {
+            model with
                 ServerInfo = settings
                 Client = Error null
-            }
+        }
 
         model', Cmd.ofMsg(PiMsg.Login false)
     | PiMsg.ActionSettingReceived settings ->
         let model' = { model with ActionSetting = settings }
         model', Cmd.none
     | PiMsg.UpdateServerInfo serverInfo ->
-        let model' =
-            { model with
+        let model' = {
+            model with
                 ServerInfo = serverInfo
                 Client = Error null
-            }
+        }
 
         model', Cmd.none
     | PiMsg.Login manual ->
@@ -171,11 +171,11 @@ let update (msg: PiMsg) (model: PiModel) =
             | Ok _ -> Cmd.ofMsg PiMsg.GetData
             | _ -> Cmd.none
 
-        let model' =
-            { model with
+        let model' = {
+            model with
                 Client = client
                 IsLoading = Ok false
-            }
+        }
 
         model', cmd
     | PiMsg.Logout -> { model with Client = Error null }, Cmd.none
@@ -232,28 +232,28 @@ let update (msg: PiMsg) (model: PiModel) =
         let toMap(accessories: Client.AccessoryDetails[]) =
             accessories |> Array.map(fun x -> x.uniqueId, x) |> Map.ofArray
 
-        let state =
-            { model with
+        let state = {
+            model with
                 Accessories = accessories |> toMap
                 SwitchAccessories = accessories |> Array.map filterBoolCharacteristics |> toMap
                 RangeAccessories = accessories |> Array.map filterRangeCharacteristics |> toMap
                 Layout = layout
                 IsLoading = Ok false
-            }
+        }
 
         state, Cmd.none
     | PiMsg.ResetLoading error -> { model with IsLoading = Error error }, Cmd.none
     | PiMsg.SelectActionType actionType -> { model with ActionType = actionType }, Cmd.none
     | PiMsg.SelectAccessory uniqueId ->
-        let model' =
-            { model with
-                ActionSetting =
-                    { model.ActionSetting with
+        let model' = {
+            model with
+                ActionSetting = {
+                    model.ActionSetting with
                         AccessoryId = uniqueId
                         CharacteristicType = None
                         TargetValue = None
-                    }
-            }
+                }
+        }
 
         model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
         model', Cmd.none
@@ -269,25 +269,25 @@ let update (msg: PiMsg) (model: PiModel) =
                 Some(ch.value.Value :?> float)
             | _ -> None
 
-        let model' =
-            { model with
-                ActionSetting =
-                    { model.ActionSetting with
+        let model' = {
+            model with
+                ActionSetting = {
+                    model.ActionSetting with
                         CharacteristicType = characteristicType
                         TargetValue = targetValue
-                    }
-            }
+                }
+        }
 
         model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
         model', Cmd.none
     | PiMsg.ChangeTargetValue targetValue ->
-        let model' =
-            { model with
-                ActionSetting =
-                    { model.ActionSetting with
+        let model' = {
+            model with
+                ActionSetting = {
+                    model.ActionSetting with
                         TargetValue = targetValue
-                    }
-            }
+                }
+        }
 
         model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
         model', Cmd.none
@@ -488,10 +488,10 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 prop.required true
                                 prop.onChange(fun value ->
                                     dispatch
-                                    <| PiMsg.UpdateServerInfo
-                                        { model.ServerInfo with
+                                    <| PiMsg.UpdateServerInfo {
+                                        model.ServerInfo with
                                             UserName = value
-                                        })
+                                    })
                             ]
                         ]
                     ]
@@ -507,10 +507,10 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 prop.value model.ServerInfo.Password
                                 prop.required true
                                 prop.onChange(fun value ->
-                                    let settings =
-                                        { model.ServerInfo with
+                                    let settings = {
+                                        model.ServerInfo with
                                             Password = value
-                                        }
+                                    }
 
                                     dispatch <| PiMsg.UpdateServerInfo settings)
                             ]
@@ -525,10 +525,10 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 prop.classes [ SdPi.ItemValue; "select" ]
                                 prop.value model.ServerInfo.UpdateInterval
                                 prop.onChange(fun (value: string) ->
-                                    let settings =
-                                        { model.ServerInfo with
+                                    let settings = {
+                                        model.ServerInfo with
                                             UpdateInterval = int(value)
-                                        }
+                                    }
 
                                     dispatch <| PiMsg.UpdateServerInfo settings)
                                 prop.children [
