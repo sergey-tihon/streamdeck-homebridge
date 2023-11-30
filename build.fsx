@@ -30,7 +30,7 @@ let stage_update_manifest =
     }
 
 pipeline "build" {
-    description "Format code, build and package plugin"
+    workingDir __SOURCE_DIRECTORY__
 
     runBeforeEachStage(fun ctx ->
         if ctx.GetStageLevel() = 0 then
@@ -70,6 +70,5 @@ pipeline "build" {
 
     runIfOnlySpecified
 }
-
 
 tryPrintPipelineCommandHelp()

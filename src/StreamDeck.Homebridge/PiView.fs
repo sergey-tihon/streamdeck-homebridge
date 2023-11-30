@@ -50,7 +50,7 @@ let init isDevMode =
             IsDevMode = isDevMode
             ReplyAgent = None
             ServerInfo = {
-                Host = "http://192.168.0.55:8581"
+                Host = "http://192.168.68.65:8581"
                 UserName = "admin"
                 Password = "admin"
                 UpdateInterval = 5
@@ -467,7 +467,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             Html.input [
                                 prop.className SdPi.ItemValue
                                 prop.value model.ServerInfo.Host
-                                prop.placeholder "e.g. http://192.168.0.1:8581"
+                                prop.placeholder "e.g. http://192.168.68.65:8581"
                                 prop.required true
                                 prop.pattern(Regex "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$")
                                 prop.onChange(fun value ->
