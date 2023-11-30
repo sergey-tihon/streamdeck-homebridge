@@ -50,12 +50,12 @@ pipeline "build" {
     stage "Lint" {
         stage "Format" {
             whenNot { envVar options.GithubAction }
-            run "dotnet fantomas . -r"
+            run "dotnet fantomas ./src/**/*.fs"
         }
 
         stage "Check" {
             whenEnvVar options.GithubAction
-            run "dotnet fantomas . -r --check"
+            run "dotnet fantomas ./src/**/*.fs --check"
         }
     }
 

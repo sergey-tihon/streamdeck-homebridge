@@ -78,6 +78,3 @@ NUGET
     Thoth.Json (10.2)
       Fable.Core (>= 3.6.2)
       FSharp.Core (>= 4.7.2)
-HTTP
-  remote: https://developer.elgato.com
-    DistributionToolMac.zip (/documentation/stream-deck/distributiontool/DistributionToolMac.zip)
