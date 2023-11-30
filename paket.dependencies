@@ -13,5 +13,3 @@ nuget Fable.Browser.WebSocket
 nuget Fable.SimpleJson
 nuget Fable.SimpleHttp
 nuget Feliz
-
-http https://developer.elgato.com/documentation/stream-deck/distributiontool/DistributionToolMac.zip

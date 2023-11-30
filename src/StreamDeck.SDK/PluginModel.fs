@@ -85,118 +85,104 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
         let sendJson(o: obj) =
             Utils.sendJson websocket o
 
-        let rec loop() = async {
-            let! msg = inbox.Receive()
-            console.log($"Plugin sent event %A{msg}", msg)
+        let rec loop() =
+            async {
+                let! msg = inbox.Receive()
+                console.log($"Plugin sent event %A{msg}", msg)
 
-            match msg with
-            | PluginOutEvent.SetSettings(context, payload) ->
-                sendJson
-                    {|
+                match msg with
+                | PluginOutEvent.SetSettings(context, payload) ->
+                    sendJson {|
                         event = "setSettings"
                         // An opaque value identifying the instance's action.
                         context = context
                         payload = payload
                     |}
-            | PluginOutEvent.GetSettings context ->
-                sendJson
-                    {|
+                | PluginOutEvent.GetSettings context ->
+                    sendJson {|
                         event = "getSettings"
                         // An opaque value identifying the instance's action
                         context = context
                     |}
-            | PluginOutEvent.SetGlobalSettings(payload) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SetGlobalSettings(payload) ->
+                    sendJson {|
                         event = "setGlobalSettings"
                         // An opaque value identifying the plugin (inPluginUUID). This value is received during the Registration procedure.
                         context = inPluginUUID
                         payload = payload
                     |}
-            | PluginOutEvent.GetGlobalSettings ->
-                sendJson
-                    {|
+                | PluginOutEvent.GetGlobalSettings ->
+                    sendJson {|
                         event = "getGlobalSettings"
                         // An opaque value identifying the plugin (inPluginUUID). This value is received during the Registration procedure.
                         context = inPluginUUID
                     |}
-            | PluginOutEvent.OpenUrl url ->
-                sendJson
-                    {|
+                | PluginOutEvent.OpenUrl url ->
+                    sendJson {|
                         event = "openUrl"
                         payload = {| url = url |}
                     |}
-            | PluginOutEvent.LogMessage message ->
-                sendJson
-                    {|
+                | PluginOutEvent.LogMessage message ->
+                    sendJson {|
                         event = "logMessage"
                         payload = {| message = message |}
                     |}
-            | PluginOutEvent.SetTitle(context, payload) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SetTitle(context, payload) ->
+                    sendJson {|
                         event = "setTitle"
                         // An opaque value identifying the instance's action you want to modify.
                         context = context
                         payload = payload
                     |}
-            | PluginOutEvent.SetImage(context, payload) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SetImage(context, payload) ->
+                    sendJson {|
                         event = "setImage"
                         // An opaque value identifying the instance's action you want to modify.
                         context = context
                         payload = payload
                     |}
-            | PluginOutEvent.SetFeedback(context, payload) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SetFeedback(context, payload) ->
+                    sendJson {|
                         event = "setFeedback"
                         // A value to Identify the instance's action you want to modify.
                         context = context
                         payload = payload
                     |}
-            | PluginOutEvent.SetFeedbackLayout(context, payload) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SetFeedbackLayout(context, payload) ->
+                    sendJson {|
                         event = "setFeedbackLayout"
                         context = context
                         payload = payload
                     |}
-            | PluginOutEvent.ShowAlert context ->
-                sendJson
-                    {|
+                | PluginOutEvent.ShowAlert context ->
+                    sendJson {|
                         event = "showAlert"
                         // An opaque value identifying the instance's action.
                         context = context
                     |}
-            | PluginOutEvent.ShowOk context ->
-                sendJson
-                    {|
+                | PluginOutEvent.ShowOk context ->
+                    sendJson {|
                         event = "showOk"
                         // An opaque value identifying the instance's action.
                         context = context
                     |}
-            | PluginOutEvent.SetState(context, state) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SetState(context, state) ->
+                    sendJson {|
                         event = "setState"
                         // An opaque value identifying the instance's action.
                         context = context
                         payload = {| state = state |}
                     |}
-            | PluginOutEvent.SwitchToProfile(device, profileName) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SwitchToProfile(device, profileName) ->
+                    sendJson {|
                         event = "switchToProfile"
                         // An opaque value identifying the plugin. This value should be set to the PluginUUID received during the registration procedure.
                         context = inPluginUUID
                         device = device
                         payload = {| profile = profileName |}
                     |}
-            | PluginOutEvent.SendToPropertyInspector(context, action, payload) ->
-                sendJson
-                    {|
+                | PluginOutEvent.SendToPropertyInspector(context, action, payload) ->
+                    sendJson {|
                         action = action
                         event = "sendToPropertyInspector"
                         // An opaque value identifying the instance's action.
@@ -204,8 +190,8 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
                         payload = payload
                     |}
 
-            return! loop()
-        }
+                return! loop()
+            }
 
         loop())
 
@@ -215,12 +201,10 @@ let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginInEvent>)
 
     websocket.onopen <-
         fun _ ->
-            Utils.sendJson
-                websocket
-                {|
-                    event = "registerPlugin"
-                    uuid = args.UUID
-                |}
+            Utils.sendJson websocket {|
+                event = "registerPlugin"
+                uuid = args.UUID
+            |}
 
             agent.Post <| PluginInEvent.Connected(args, replyAgent)
 

@@ -1,147 +1,74 @@
-#r @"paket:
-source https://nuget.org/api/v2
-framework net6.0
-nuget FSharp.Core 6.0
-nuget Fake.Core.Target
-nuget Fake.Core.ReleaseNotes 
-nuget Fake.DotNet.Paket
-nuget Fake.DotNet.Cli //"
+#r "nuget: Fun.Build, 1.0.5"
 
-#if !FAKE
-#load "./.fake/build.fsx/intellisense.fsx"
-#r "netstandard" // Temp fix for https://github.com/fsharp/FAKE/issues/1985
-#endif
-
-
-// --------------------------------------------------------------------------------------
-// FAKE build script
-// --------------------------------------------------------------------------------------
-
-open Fake
-open Fake.Core
-open Fake.Core.TargetOperators
-open Fake.IO
-open Fake.IO.Globbing.Operators
-open Fake.DotNet
-open System
+open Fun.Build
 open System.IO
 
-let bin = "bin"
-let name = "com.sergeytihon.homebridge.sdPlugin"
+let options = {|
+    GithubAction = EnvArg.Create("GITHUB_ACTION", description = "Run only in in github action container")
+|}
 
-let releaseNotesData = File.ReadAllLines "RELEASE_NOTES.md" |> ReleaseNotes.parseAll
-let release = List.head releaseNotesData
+let stage_update_manifest =
+    stage "Update Manifest" {
+        run(fun _ ->
+            let version =
+                Changelog.GetLastVersion(__SOURCE_DIRECTORY__)
+                |> Option.defaultWith(fun () -> failwith "Version is not found")
 
-let macTarget =
-    IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "/Library/Application Support/com.elgato.StreamDeck/Plugins"
-    )
+            let fileName =
+                Path.Combine(__SOURCE_DIRECTORY__, "src/com.sergeytihon.homebridge.sdPlugin/manifest.json")
 
-// Targets
-Target.create "Clean" (fun _ ->
-    Shell.mkdir bin
-    Shell.cleanDir bin)
+            let lines =
+                File.ReadAllLines fileName
+                |> Seq.map(fun line ->
+                    if line.TrimStart().StartsWith($"\"Version\":") then
+                        let indent = line.Substring(0, line.IndexOf("\""))
+                        sprintf "%s\"%s\": \"%s\"," indent "Version" version.Version
+                    else
+                        line)
 
-Target.create "NpmInstall" (fun _ ->
-    Shell.Exec("npm", "install")
-    |> function
-        | 0 -> ()
-        | code -> failwithf "build failed with code %d" code)
+            File.WriteAllLines(fileName, lines))
+    }
 
-let setManifestJsonField fieldName value =
-    let fileName = Path.Combine(__SOURCE_DIRECTORY__, "src", name, "manifest.json")
+pipeline "build" {
+    workingDir __SOURCE_DIRECTORY__
 
-    let lines =
-        File.ReadAllLines fileName
-        |> Seq.map(fun line ->
-            if line.TrimStart().StartsWith($"\"{fieldName}\":") then
-                let indent = line.Substring(0, line.IndexOf("\""))
-                sprintf "%s\"%s\": %s," indent fieldName value
-            else
-                line)
+    runBeforeEachStage(fun ctx ->
+        if ctx.GetStageLevel() = 0 then
+            printfn $"::group::{ctx.Name}")
 
-    File.WriteAllLines(fileName, lines)
+    runAfterEachStage(fun ctx ->
+        if ctx.GetStageLevel() = 0 then
+            printfn "::endgroup::")
 
-Target.create "Build" (fun _ ->
-    let versionString = $"\"{release.NugetVersion}\""
-    setManifestJsonField "Version" versionString
+    stage "Check environment" {
+        run "dotnet tool restore"
+        run "dotnet paket restore"
+        run "npm install"
+        run(fun ctx -> printfn $"""github action name: {ctx.GetEnvVar options.GithubAction.Name}""")
+    }
 
-    Shell.copyDir $"bin/{name}" $"src/{name}" (fun s -> not <| s.Contains("/js/"))
+    stage "Lint" {
+        stage "Format" {
+            whenNot { envVar options.GithubAction }
+            run "dotnet fantomas ."
+        }
 
-    Shell.Exec("npm", "run build")
-    |> function
-        | 0 -> ()
-        | code -> failwithf "build failed with code %d" code)
+        stage "Check" {
+            whenEnvVar options.GithubAction
+            run "dotnet fantomas . --check"
+        }
+    }
 
-Target.create "Release" (fun _ ->
-    let cmd = "./paket-files/developer.elgato.com/DistributionTool"
-    // DistributionTool -b -i com.elgato.counter.sdPlugin -o ~/Desktop/
-    CreateProcess.fromRawCommand cmd [ "-b"; "-i"; $"bin/{name}"; "-o"; "./bin" ]
-    |> Proc.run
-    |> fun res ->
-        if res.ExitCode <> 0 then
-            failwithf "DistributionTool failed with code %d" res.ExitCode)
+    stage "Build" {
+        run "rm -rf ./bin"
+        run "mkdir bin"
+        stage_update_manifest
+        run "cp -r ./src/com.sergeytihon.homebridge.sdPlugin ./bin/com.sergeytihon.homebridge.sdPlugin"
+        run "npm run build"
+        run "./DistributionTool -b -i bin/com.sergeytihon.homebridge.sdPlugin -o ./bin"
+    }
 
-Target.create "Deploy" (fun _ ->
-    let target = $"{macTarget}/{name}"
-    Shell.deleteDir target
-    Shell.copyDir target $"bin/{name}" (fun _ -> true)
-    Process.killAllByName "Stream Deck"
+    runIfOnlySpecified
+}
 
-// CreateProcess.fromRawCommand
-//     "/Applications/Stream Deck.app/Contents/MacOS/Stream Deck" []
-// |> Proc.start |> ignore
-)
-
-// --------------------------------------------------------------------------------------
-
-let sourceFiles =
-    !! "**/*.fs" ++ "**/*.fsx"
-    -- "packages/**/*.*"
-    -- "paket-files/**/*.*"
-    -- ".fake/**/*.*"
-    -- "**/obj/**/*.*"
-    -- "**/AssemblyInfo.fs"
-
-Target.create "Format" (fun _ ->
-    let result =
-        sourceFiles
-        |> Seq.map(sprintf "\"%s\"")
-        |> String.concat " "
-        |> DotNet.exec id "fantomas"
-
-    if not result.OK then
-        printfn "Errors while formatting all files: %A" result.Messages)
-
-Target.create "CheckFormat" (fun _ ->
-    let result =
-        sourceFiles
-        |> Seq.map(sprintf "\"%s\"")
-        |> String.concat " "
-        |> sprintf "%s --check"
-        |> DotNet.exec id "fantomas"
-
-    if result.ExitCode = 0 then
-        Trace.log "No files need formatting"
-    elif result.ExitCode = 99 then
-        failwith "Some files need formatting, run `dotnet fake build -t Format` to format them"
-    else
-        Trace.logf "Errors while formatting: %A" result.Errors
-        failwith "Unknown errors while formatting")
-
-// --------------------------------------------------------------------------------------
-
-Target.create "All" ignore
-
-// Build order
-"Clean"
-==> "NpmInstall"
-==> "CheckFormat"
-==> "Build"
-==> "Release"
-==> "All"
-==> "Deploy"
-
-// start build
-Target.runOrDefault "All"
+tryPrintPipelineCommandHelp()

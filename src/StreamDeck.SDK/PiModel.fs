@@ -38,56 +38,50 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
         let sendJson(o: obj) =
             Utils.sendJson websocket o
 
-        let rec loop() = async {
-            let! msg = inbox.Receive()
-            console.log($"PI sent event %A{msg}", msg)
+        let rec loop() =
+            async {
+                let! msg = inbox.Receive()
+                console.log($"PI sent event %A{msg}", msg)
 
-            match msg with
-            | PiOutEvent.SetSettings payload ->
-                sendJson
-                    {|
+                match msg with
+                | PiOutEvent.SetSettings payload ->
+                    sendJson {|
                         event = "setSettings"
                         // An opaque value identifying the Property Inspector. This value is received by the Property Inspector as parameter of the connectElgatoStreamDeckSocket function.
                         context = inPropertyInspectorUUID
                         payload = payload
                     |}
-            | PiOutEvent.GetSettings ->
-                sendJson
-                    {|
+                | PiOutEvent.GetSettings ->
+                    sendJson {|
                         event = "getSettings"
                         // An opaque value identifying the Property Inspector. This value is received by the Property Inspector as parameter of the connectElgatoStreamDeckSocket function.
                         context = inPropertyInspectorUUID
                     |}
-            | PiOutEvent.SetGlobalSettings payload ->
-                sendJson
-                    {|
+                | PiOutEvent.SetGlobalSettings payload ->
+                    sendJson {|
                         event = "setGlobalSettings"
                         // An opaque value identifying the Property Inspector (inPropertyInspectorUUID). This value is received during the Registration procedure.
                         context = inPropertyInspectorUUID
                         payload = payload
                     |}
-            | PiOutEvent.GetGlobalSettings ->
-                sendJson
-                    {|
+                | PiOutEvent.GetGlobalSettings ->
+                    sendJson {|
                         event = "getGlobalSettings"
                         // An opaque value identifying the Property Inspector (inPropertyInspectorUUID). This value is received during the Registration procedure.
                         context = inPropertyInspectorUUID
                     |}
-            | PiOutEvent.OpenUrl url ->
-                sendJson
-                    {|
+                | PiOutEvent.OpenUrl url ->
+                    sendJson {|
                         event = "openUrl"
                         payload = {| url = url |}
                     |}
-            | PiOutEvent.LogMessage message ->
-                sendJson
-                    {|
+                | PiOutEvent.LogMessage message ->
+                    sendJson {|
                         event = "logMessage"
                         payload = {| message = message |}
                     |}
-            | PiOutEvent.SendToPlugin payload ->
-                sendJson
-                    {|
+                | PiOutEvent.SendToPlugin payload ->
+                    sendJson {|
                         action = args.ActionInfo.Value.action
                         event = "sendToPlugin"
                         // An opaque value identifying the Property Inspector. This value is received by the Property Inspector as parameter of the connectElgatoStreamDeckSocket function.
@@ -95,8 +89,8 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
                         payload = payload
                     |}
 
-            return! loop()
-        }
+                return! loop()
+            }
 
         loop())
 
@@ -108,12 +102,10 @@ let connectPropertyInspector (args: StartArgs) (agent: MailboxProcessor<PiInEven
 
     websocket.onopen <-
         fun _ ->
-            Utils.sendJson
-                websocket
-                {|
-                    event = "registerPropertyInspector"
-                    uuid = args.UUID
-                |}
+            Utils.sendJson websocket {|
+                event = "registerPropertyInspector"
+                uuid = args.UUID
+            |}
 
             agent.Post <| PiInEvent.Connected(args, replyAgent)
 
