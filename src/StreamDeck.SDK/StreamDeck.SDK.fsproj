@@ -9,6 +9,7 @@
     <Compile Include="PluginModel.fs" />
     <Compile Include="PiModel.fs" />
     <Compile Include="Css.fs" />
+    <Compile Include="Components.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

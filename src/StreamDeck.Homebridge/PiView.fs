@@ -1,13 +1,13 @@
 module StreamDeck.Homebridge.PiView
 
+open System.Text.RegularExpressions
 open Browser
 open Elmish
+open Feliz
 open StreamDeck.SDK.Dto
 open StreamDeck.SDK.PiModel
 open StreamDeck.SDK.Css
-open System.Text.RegularExpressions
-open Feliz
-
+open StreamDeck.SDK.Components
 
 type PiModel = {
     IsDevMode: bool
@@ -333,249 +333,153 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
     let accessorySelector(accessories: Map<string, Client.AccessoryDetails>) = [
         match model.ActionSetting.AccessoryId with
         | Some(uniqueId) when not <| accessories.ContainsKey(uniqueId) ->
-            Html.details [
-                prop.classes [ "message"; "caution" ]
-                prop.children [
-                    Html.summary [
-                        prop.style [ style.color "red" ]
-                        prop.text
-                            "Configured device is no longer available on Homebridge. Please update Homebridge or Reset button config."
-                    ]
-                ]
-            ]
+            Pi.message
+                "caution"
+                "red"
+                "Configured device is no longer available on Homebridge. Please update Homebridge or Reset button config."
 
-            Html.div [
-                prop.className SdPi.Item
-                prop.children [
-                    Html.button [
-                        prop.className SdPi.ItemValue
-                        prop.onClick(fun _ -> dispatch <| PiMsg.SelectAccessory None)
-                        prop.text "Reset button config"
-                    ]
-                ]
-            ]
+            Pi.button "Reset button config" (fun _ -> dispatch <| PiMsg.SelectAccessory None)
         | _ ->
-            Html.div [
-                prop.className SdPi.Item
+            Pi.select "Accessory" [
+                prop.value(model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
                 prop.children [
-                    Html.div [ prop.className SdPi.ItemLabel; prop.text "Accessory" ]
-                    Html.select [
-                        prop.classes [ SdPi.ItemValue; "select" ]
-                        prop.value(model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
-                        prop.onChange(fun (value: string) ->
-                            //let value = x.Value
-                            let msg = if value = "DEFAULT" then None else Some value
-                            dispatch <| PiMsg.SelectAccessory msg)
-                        prop.children [
-                            Html.option [ prop.value "DEFAULT" ]
-                            for room in model.Layout do
-                                Html.optgroup [
-                                    prop.custom("label", room.name)
-                                    //prop.label room.name
-                                    prop.children(
-                                        room.services
-                                        |> Array.toList
-                                        |> List.choose(fun itemInfo ->
-                                            Map.tryFind itemInfo.uniqueId accessories
-                                            |> Option.map(fun accessoryDetails ->
-                                                let name =
-                                                    itemInfo.customName
-                                                    |> Option.defaultValue accessoryDetails.serviceName
+                    Html.option [ prop.value "DEFAULT" ]
+                    for room in model.Layout do
+                        Html.optgroup [
+                            prop.custom("label", room.name)
+                            //prop.label room.name
+                            prop.children(
+                                room.services
+                                |> Array.toList
+                                |> List.choose(fun itemInfo ->
+                                    Map.tryFind itemInfo.uniqueId accessories
+                                    |> Option.map(fun accessoryDetails ->
+                                        let name =
+                                            itemInfo.customName
+                                            |> Option.defaultValue accessoryDetails.serviceName
 
-                                                name, accessoryDetails))
-                                        |> List.sortBy fst
-                                        |> List.map(fun (name, accessoryDetails) ->
-                                            Html.option [
-                                                prop.value accessoryDetails.uniqueId
-                                                prop.disabled(accessoryDetails.serviceCharacteristics.Length = 0)
-                                                prop.text name
-                                            ])
-                                    )
-                                ]
+                                        name, accessoryDetails))
+                                |> List.sortBy fst
+                                |> List.map(fun (name, accessoryDetails) ->
+                                    Html.option [
+                                        prop.value accessoryDetails.uniqueId
+                                        prop.disabled(accessoryDetails.serviceCharacteristics.Length = 0)
+                                        prop.text name
+                                    ])
+                            )
                         ]
-                    ]
                 ]
+                prop.onChange(fun (value: string) ->
+                    //let value = x.Value
+                    let msg = if value = "DEFAULT" then None else Some value
+                    dispatch <| PiMsg.SelectAccessory msg)
             ]
     ]
 
     let characteristicSelector(accessory: Client.AccessoryDetails) =
-        Html.div [
-            prop.className SdPi.Item
+        Pi.select "Characteristic" [
+            prop.value(
+                model.ActionSetting.CharacteristicType
+                |> Option.defaultValue "DEFAULT"
+            )
             prop.children [
-                Html.div [ prop.className SdPi.ItemLabel; prop.text "Characteristic" ]
-                Html.select [
-                    prop.classes [ SdPi.ItemValue; "select" ]
-                    prop.value(
-                        model.ActionSetting.CharacteristicType
-                        |> Option.defaultValue "DEFAULT"
-                    )
-                    prop.onChange(fun (value: string) ->
-                        let msg = if value = "DEFAULT" then None else Some value
-                        dispatch <| PiMsg.SelectCharacteristic msg)
-                    prop.children [
-                        Html.option [ prop.value "DEFAULT" ]
-                        let characteristics =
-                            accessory.serviceCharacteristics |> Array.sortBy(fun x -> x.``type``)
+                Html.option [ prop.value "DEFAULT" ]
+                let characteristics =
+                    accessory.serviceCharacteristics |> Array.sortBy(fun x -> x.``type``)
 
-                        for x in characteristics do
-                            Html.option [ prop.value x.``type``; prop.text x.description ]
-                    ]
-                ]
+                for x in characteristics do
+                    Html.option [ prop.value x.``type``; prop.text x.description ]
             ]
+            prop.onChange(fun (value: string) ->
+                let msg = if value = "DEFAULT" then None else Some value
+                dispatch <| PiMsg.SelectCharacteristic msg)
         ]
 
-    let testButton() =
-        Html.div [
-            prop.className SdPi.Item
-            prop.children [
-                Html.button [
-                    prop.className SdPi.ItemValue
-                    prop.onClick(fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
-                    prop.text "Test configuration (Apply)"
-                ]
-            ]
-        ]
-
-    let message icon color (message: string) =
-        Html.details [
-            prop.classes [ "message"; icon ]
-            prop.children [ Html.summary [ prop.style [ style.color color ]; prop.text message ] ]
-        ]
-
-    let successConfirmation = message "" "green" "Button successfully configured"
+    let successConfirmation = Pi.message "" "green" "Button successfully configured"
 
     Feliz.Html.div [
         prop.className SdPi.Wrapper
         prop.children [
             match model.IsLoading with
-            | Ok true -> message "info" "orange" "Waiting for Homebridge API response ..."
+            | Ok true -> Pi.message "info" "orange" "Waiting for Homebridge API response ..."
             | _ ->
                 match model.IsLoading with
-                | Error error -> message "caution" "red" error
+                | Error error -> Pi.message "caution" "red" error
                 | _ -> ()
 
                 match model.Client with
                 | Error(error) ->
                     if not <| System.String.IsNullOrEmpty(error) then
-                        message "caution" "red" error
+                        Pi.message "caution" "red" error
 
-                    Html.div [
-                        prop.className SdPi.Item
-                        prop.type' "field"
-                        prop.children [
-                            Html.div [ prop.className SdPi.ItemLabel; prop.text "Server" ]
-                            Html.input [
-                                prop.className SdPi.ItemValue
-                                prop.value model.ServerInfo.Host
-                                prop.placeholder "e.g. http://192.168.68.65:8581"
-                                prop.required true
-                                prop.pattern(Regex "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$")
-                                prop.onChange(fun value ->
-                                    dispatch
-                                    <| PiMsg.UpdateServerInfo { model.ServerInfo with Host = value })
-                            ]
-                        ]
+                    Pi.input "Server" [
+                        prop.value model.ServerInfo.Host
+                        prop.placeholder "e.g. http://192.168.68.65:8581"
+                        prop.required true
+                        prop.pattern(Regex "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$")
+                        prop.onChange(fun value ->
+                            dispatch
+                            <| PiMsg.UpdateServerInfo { model.ServerInfo with Host = value })
                     ]
 
-                    Html.div [
-                        prop.className SdPi.Item
-                        prop.type' "field"
-                        prop.children [
-                            Html.div [ prop.className SdPi.ItemLabel; prop.text "UserName" ]
-                            Html.input [
-                                prop.className SdPi.ItemValue
-                                prop.value model.ServerInfo.UserName
-                                prop.required true
-                                prop.onChange(fun value ->
-                                    dispatch
-                                    <| PiMsg.UpdateServerInfo {
-                                        model.ServerInfo with
-                                            UserName = value
-                                    })
-                            ]
-                        ]
+                    Pi.input "UserName" [
+                        prop.value model.ServerInfo.UserName
+                        prop.required true
+                        prop.onChange(fun value ->
+                            dispatch
+                            <| PiMsg.UpdateServerInfo {
+                                model.ServerInfo with
+                                    UserName = value
+                            })
                     ]
 
-                    Html.div [
-                        prop.className SdPi.Item
+                    Pi.input "Password" [
                         prop.type' "password"
-                        prop.children [
-                            Html.div [ prop.className SdPi.ItemLabel; prop.text "Password" ]
-                            Html.input [
-                                prop.className SdPi.ItemValue
-                                prop.type' "password"
-                                prop.value model.ServerInfo.Password
-                                prop.required true
-                                prop.onChange(fun value ->
-                                    let settings = {
-                                        model.ServerInfo with
-                                            Password = value
-                                    }
+                        prop.value model.ServerInfo.Password
+                        prop.required true
+                        prop.onChange(fun value ->
+                            let settings = {
+                                model.ServerInfo with
+                                    Password = value
+                            }
 
-                                    dispatch <| PiMsg.UpdateServerInfo settings)
-                            ]
-                        ]
+                            dispatch <| PiMsg.UpdateServerInfo settings)
                     ]
 
-                    Html.div [
-                        prop.className SdPi.Item
+                    Pi.select "Update" [
+                        prop.value model.ServerInfo.UpdateInterval
                         prop.children [
-                            Html.div [ prop.className SdPi.ItemLabel; prop.text "Update" ]
-                            Html.select [
-                                prop.classes [ SdPi.ItemValue; "select" ]
-                                prop.value model.ServerInfo.UpdateInterval
-                                prop.onChange(fun (value: string) ->
-                                    let settings = {
-                                        model.ServerInfo with
-                                            UpdateInterval = int(value)
-                                    }
-
-                                    dispatch <| PiMsg.UpdateServerInfo settings)
-                                prop.children [
-                                    Html.option [ prop.value "0"; prop.text "Never" ]
-                                    Html.option [ prop.value "1"; prop.text "Every second" ]
-                                    Html.option [ prop.value "2"; prop.text "Every 2 seconds" ]
-                                    Html.option [ prop.value "5"; prop.text "Every 5 seconds" ]
-                                    Html.option [ prop.value "10"; prop.text "Every 10 seconds" ]
-                                    Html.option [ prop.value "60"; prop.text "Every minute" ]
-                                ]
-                            ]
+                            Html.option [ prop.value "0"; prop.text "Never" ]
+                            Html.option [ prop.value "1"; prop.text "Every second" ]
+                            Html.option [ prop.value "2"; prop.text "Every 2 seconds" ]
+                            Html.option [ prop.value "5"; prop.text "Every 5 seconds" ]
+                            Html.option [ prop.value "10"; prop.text "Every 10 seconds" ]
+                            Html.option [ prop.value "60"; prop.text "Every minute" ]
                         ]
+                        prop.onChange(fun (value: string) ->
+                            {
+                                model.ServerInfo with
+                                    UpdateInterval = int(value)
+                            }
+                            |> PiMsg.UpdateServerInfo
+                            |> dispatch)
                     ]
 
-
-                    Html.div [
-                        prop.className SdPi.Item
-                        prop.type' "button"
-                        prop.children [
-                            Html.button [
-                                prop.className SdPi.ItemValue
-                                prop.onClick(fun _ -> dispatch <| PiMsg.Login true)
-                                prop.text "Login"
-                            ]
-                        ]
-                    ]
+                    Pi.button "Login" (fun _ -> dispatch <| PiMsg.Login true)
                 | Ok _ ->
                     match model.ActionType with
                     | None ->
-                        Html.div [
-                            prop.className SdPi.Item
+                        Pi.select "Action Type" [
+                            prop.value(model.ActionType |> Option.defaultValue "DEFAULT")
                             prop.children [
-                                Html.div [ prop.className SdPi.ItemLabel; prop.text "Action Type" ]
-                                Html.select [
-                                    prop.classes [ SdPi.ItemValue; "select" ]
-                                    prop.value(model.ActionType |> Option.defaultValue "DEFAULT")
-                                    prop.onChange(fun value ->
-                                        let msg = if value = "DEFAULT" then None else Some value
-                                        dispatch <| PiMsg.SelectActionType msg)
-                                    prop.children [
-                                        Html.option [ prop.value "DEFAULT" ]
-                                        Html.option [ prop.value Domain.ActionName.ConfigUi; prop.text "Config UI" ]
-                                        Html.option [ prop.value Domain.ActionName.Switch; prop.text "Switch" ]
-                                        Html.option [ prop.value Domain.ActionName.Set; prop.text "Set state" ]
-                                    ]
-                                ]
+                                Html.option [ prop.value "DEFAULT" ]
+                                Html.option [ prop.value Domain.ActionName.ConfigUi; prop.text "Config UI" ]
+                                Html.option [ prop.value Domain.ActionName.Switch; prop.text "Switch" ]
+                                Html.option [ prop.value Domain.ActionName.Set; prop.text "Set state" ]
                             ]
+                            prop.onChange(fun value ->
+                                let msg = if value = "DEFAULT" then None else Some value
+                                dispatch <| PiMsg.SelectActionType msg)
                         ]
                     | Some(Domain.ActionName.ConfigUi) -> successConfirmation
                     | Some(Domain.ActionName.Switch) ->
@@ -589,7 +493,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             match model.ActionSetting.CharacteristicType with
                             | Some characteristicType ->
                                 if model.IsDevMode then
-                                    testButton()
+                                    Pi.button "Emit Switch action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
 
                                 successConfirmation
                             //characteristicDetails characteristicType accessory
@@ -609,44 +513,31 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
 
                                 match ch.minValue, ch.minStep, ch.maxValue with
                                 | Some minValue, Some minStep, Some maxValue ->
-                                    Html.div [
-                                        prop.type' "range"
-                                        prop.className SdPi.Item
-                                        prop.children [
-                                            Html.div [
-                                                prop.className SdPi.ItemLabel
-                                                prop.text $"Target value ({targetValue})"
-                                            ]
-                                            Html.div [
-                                                prop.className SdPi.ItemValue
-                                                prop.children [
-                                                    Html.span [
-                                                        prop.className "clickable"
-                                                        prop.value minValue
-                                                        prop.text $"{minValue}"
-                                                    ]
-                                                    Html.input [
-                                                        prop.type' "range"
-                                                        prop.min minValue
-                                                        prop.max maxValue
-                                                        prop.step minStep
-                                                        prop.value targetValue
-                                                        prop.onChange(fun (x: float) ->
-                                                            let payload = Some(x)
-                                                            dispatch <| PiMsg.ChangeTargetValue payload)
-                                                    ]
-                                                    Html.span [
-                                                        prop.className "clickable"
-                                                        prop.value maxValue
-                                                        prop.text $"{maxValue}"
-                                                    ]
-                                                ]
-                                            ]
+                                    Pi.range $"Target value ({targetValue})" [
+                                        Html.span [
+                                            prop.className "clickable"
+                                            prop.value minValue
+                                            prop.text $"{minValue}"
+                                        ]
+                                        Html.input [
+                                            prop.type' "range"
+                                            prop.min minValue
+                                            prop.max maxValue
+                                            prop.step minStep
+                                            prop.value targetValue
+                                            prop.onChange(fun (x: float) ->
+                                                let payload = Some(x)
+                                                dispatch <| PiMsg.ChangeTargetValue payload)
+                                        ]
+                                        Html.span [
+                                            prop.className "clickable"
+                                            prop.value maxValue
+                                            prop.text $"{maxValue}"
                                         ]
                                     ]
 
                                     if model.IsDevMode then
-                                        testButton()
+                                        Pi.button "Emit Set action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
 
                                     successConfirmation
                                 | _ -> ()
@@ -654,16 +545,6 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                         | _ -> ()
                     | Some ty -> Html.p [ prop.text $"Unsupported action type {ty}" ]
 
-                    Html.div [
-                        prop.className SdPi.Item
-                        prop.type' "button"
-                        prop.children [
-                            Html.button [
-                                prop.className SdPi.ItemValue
-                                prop.onClick(fun _ -> dispatch <| PiMsg.Logout)
-                                prop.text "Logout"
-                            ]
-                        ]
-                    ]
+                    Pi.button "Logout" (fun _ -> dispatch <| PiMsg.Logout)
         ]
     ]

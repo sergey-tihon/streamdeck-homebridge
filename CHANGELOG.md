@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [1.5.0] - 2023-12-28
+
+- Reusable SDK components, styled to SdPi guidelines
+- Dependencies update, Fun.Build and .NET 8 (#31)
 
 ## [1.4.0] - 2023-01-01
 
