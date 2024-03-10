@@ -108,9 +108,7 @@ module private Api =
                 if response.statusCode = 201 then
                     Json.tryParseAs<AuthResult> response.responseText
                 else
-                    let msg =
-                        $"Unsuccessful login: Server is unavailable or login/password is incorrect. {response.responseText}"
-
+                    let msg = $"Cannot authenticate to the server.\nResponse:{Json.serialize(response)}"
                     Error msg
         }
 
