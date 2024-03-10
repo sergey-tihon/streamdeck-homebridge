@@ -417,9 +417,12 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                         prop.placeholder "e.g. http://192.168.68.65:8581"
                         prop.required true
                         prop.pattern(Regex "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$")
-                        prop.onChange(fun value ->
+                        prop.onChange(fun (value: string) ->
                             dispatch
-                            <| PiMsg.UpdateServerInfo { model.ServerInfo with Host = value })
+                            <| PiMsg.UpdateServerInfo {
+                                model.ServerInfo with
+                                    Host = value.TrimEnd([| '/' |])
+                            })
                     ]
 
                     Pi.input "UserName" [
