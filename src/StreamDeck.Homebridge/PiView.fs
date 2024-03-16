@@ -421,7 +421,11 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             dispatch
                             <| PiMsg.UpdateServerInfo {
                                 model.ServerInfo with
-                                    Host = value.TrimEnd([| '/' |])
+                                    Host =
+                                        if value.Length > 10 then
+                                            value.TrimEnd([| '/' |])
+                                        else // we should not trim when user type only "http://"
+                                            value
                             })
                     ]
 
