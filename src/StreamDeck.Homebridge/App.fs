@@ -20,13 +20,8 @@ open Elmish.Debug
 /// <param name="inApplicationInfo">Information about the host (StreamDeck) application.</param>
 /// <param name="inActionInfo">Context is an internal identifier used to communicate to the host application.</param>
 let connectElgatoStreamDeckSocket
-    (
-        inPort: string,
-        inUUID: string,
-        inMessageType: string,
-        inApplicationInfo: string,
-        inActionInfo: string
-    ) =
+    (inPort: string, inUUID: string, inMessageType: string, inApplicationInfo: string, inActionInfo: string)
+    =
     let args: StartArgs = {
         Port = inPort
         UUID = inUUID
