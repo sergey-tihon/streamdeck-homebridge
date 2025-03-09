@@ -3,6 +3,7 @@
 Elgato Stream Deck plugin that allow to control devices connected to Homebridge server.
 
 Plugin allows:
+
 - Turn on/off devices
 - Set state of different characteristics (for example brightness, hue, saturation, color temperature, etc.)
 
@@ -19,6 +20,6 @@ Install from [Stream Deck App Store](https://apps.elgato.com/plugins/com.sergeyt
 
 ## Credits
 
-* [Homebridge](https://homebridge.io)
-* [elgatosf/streamdeck-plugintemplate](https://github.com/elgatosf/streamdeck-plugintemplate)
-* [sieteunoseis/streamdeck-homebridge-switch](https://github.com/sieteunoseis/streamdeck-homebridge-switch)
+- [Homebridge](https://homebridge.io)
+- [elgatosf/streamdeck-plugintemplate](https://github.com/elgatosf/streamdeck-plugintemplate)
+- [sieteunoseis/streamdeck-homebridge-switch](https://github.com/sieteunoseis/streamdeck-homebridge-switch)

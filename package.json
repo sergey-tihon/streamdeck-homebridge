@@ -1,19 +1,19 @@
 {
-    "private": true,
-    "scripts": {
-        "postinstall": "dotnet tool restore",
-        "start": "dotnet fable watch src/StreamDeck.Homebridge --run webpack-dev-server",
-        "build": "dotnet fable src/StreamDeck.Homebridge && webpack"
-    },
-    "dependencies": {
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0",
-        "remotedev": "^0.2.9"
-    },
-    "devDependencies": {
-        "webpack": "^5.94.0",
-        "webpack-cli": "^5.1.4",
-        "webpack-dev-server": "^4.15.1"
-    },
-    "version": "1.0.0"
+  "private": true,
+  "scripts": {
+    "postinstall": "dotnet tool restore",
+    "start": "dotnet fable watch src/StreamDeck.Homebridge --run webpack-dev-server",
+    "build": "dotnet fable src/StreamDeck.Homebridge && webpack"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotedev": "^0.2.9"
+  },
+  "devDependencies": {
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
+  },
+  "version": "1.0.0"
 }
