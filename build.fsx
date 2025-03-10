@@ -7,27 +7,10 @@ let options = {|
     GithubAction = EnvArg.Create("GITHUB_ACTION", description = "Run only in in github action container")
 |}
 
-let stage_update_manifest =
-    stage "Update Manifest" {
-        run(fun _ ->
-            let version =
-                Changelog.GetLastVersion(__SOURCE_DIRECTORY__)
-                |> Option.defaultWith(fun () -> failwith "Version is not found")
+let version =
+    Changelog.GetLastVersion(__SOURCE_DIRECTORY__)
+    |> Option.defaultWith(fun () -> failwith "Version is not found")
 
-            let fileName =
-                Path.Combine(__SOURCE_DIRECTORY__, "src/com.sergeytihon.homebridge.sdPlugin/manifest.json")
-
-            let lines =
-                File.ReadAllLines fileName
-                |> Seq.map(fun line ->
-                    if line.TrimStart().StartsWith($"\"Version\":") then
-                        let indent = line.Substring(0, line.IndexOf("\""))
-                        sprintf "%s\"%s\": \"%s\"," indent "Version" version.Version
-                    else
-                        line)
-
-            File.WriteAllLines(fileName, lines))
-    }
 
 pipeline "build" {
     workingDir __SOURCE_DIRECTORY__
@@ -59,13 +42,16 @@ pipeline "build" {
         }
     }
 
-    stage "Build" {
+    stage "Validate" { run "npx @elgato/cli validate ./src/com.sergeytihon.homebridge.sdPlugin/" }
+
+    stage $"Build %s{version.Version}" {
         run "rm -rf ./bin"
         run "mkdir bin"
-        stage_update_manifest
         run "cp -r ./src/com.sergeytihon.homebridge.sdPlugin ./bin/com.sergeytihon.homebridge.sdPlugin"
         run "npm run build"
-        run "./DistributionTool -b -i bin/com.sergeytihon.homebridge.sdPlugin -o ./bin"
+
+        run
+            $"npx @elgato/cli pack bin/com.sergeytihon.homebridge.sdPlugin --output bin/ --version %s{version.Version} -f"
     }
 
     runIfOnlySpecified
