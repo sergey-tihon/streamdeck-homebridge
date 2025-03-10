@@ -27,7 +27,6 @@ pipeline "build" {
         run "dotnet tool restore"
         run "dotnet paket restore"
         run "npm install"
-        //run "npm install -g @elgato/cli"
         run(fun ctx -> printfn $"""github action name: {ctx.GetEnvVar options.GithubAction.Name}""")
     }
 
@@ -43,14 +42,16 @@ pipeline "build" {
         }
     }
 
-    stage "Validate" { run "streamdeck validate ./src/com.sergeytihon.homebridge.sdPlugin/" }
+    stage "Validate" { run "npx @elgato/cli validate ./src/com.sergeytihon.homebridge.sdPlugin/" }
 
     stage $"Build %s{version.Version}" {
         run "rm -rf ./bin"
         run "mkdir bin"
         run "cp -r ./src/com.sergeytihon.homebridge.sdPlugin ./bin/com.sergeytihon.homebridge.sdPlugin"
         run "npm run build"
-        run $"streamdeck pack bin/com.sergeytihon.homebridge.sdPlugin --output bin/ --version %s{version.Version} -f"
+
+        run
+            $"npx @elgato/cli pack bin/com.sergeytihon.homebridge.sdPlugin --output bin/ --version %s{version.Version} -f"
     }
 
     runIfOnlySpecified
