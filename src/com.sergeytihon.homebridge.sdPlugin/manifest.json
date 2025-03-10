@@ -1,71 +1,72 @@
 {
-    "Actions": [
+  "Name": "Homebridge",
+  "Version": "1.5.0.0",
+  "Author": "Sergey Tihon",
+  "Actions": [
+    {
+      "Icon": "resources/actions/switch-off",
+      "Name": "Switch",
+      "States": [
         {
-            "Icon": "resources/actions/switch-off",
-            "Name": "Switch",
-            "States": [
-                {
-                    "Image": "resources/actions/switch-off",
-                    "Name": "Off"
-                },
-                {
-                    "Image": "resources/actions/switch-on",
-                    "Name": "On"
-                }
-            ],
-            "SupportedInMultiActions": true,
-            "Tooltip": "Switch accessory characteristic (Turn on or off).",
-            "UUID": "com.sergeytihon.homebridge.switch"
+          "Image": "resources/actions/switch-off",
+          "Name": "Off"
         },
         {
-            "Icon": "resources/actions/set",
-            "Name": "Set state",
-            "States": [
-                {
-                    "Image": "resources/actions/set",
-                    "Name": "Set"
-                }
-            ],
-            "SupportedInMultiActions": true,
-            "Tooltip": "Set accessory characteristic to predefined state.",
-            "UUID": "com.sergeytihon.homebridge.set"
-        },
-        {
-            "Icon": "resources/pluginIcon",
-            "Name": "Open Homebridge UI",
-            "States": [
-                {
-                    "Image": "resources/pluginIcon",
-                    "Name": "Website"
-                }
-            ],
-            "SupportedInMultiActions": true,
-            "Tooltip": "Open Homebridge UI",
-            "UUID": "com.sergeytihon.homebridge.config-ui"
+          "Image": "resources/actions/switch-on",
+          "Name": "On"
         }
-    ],
-    "SDKVersion": 2,
-    "Author": "Sergey Tihon",
-    "CodePath": "index.html",
-    "PropertyInspectorPath": "pi.html",
-    "Description": "Control your Homebridge accessories",
-    "Name": "Homebridge",
-    "Icon": "resources/pluginIcon",
-    "URL": "https://github.com/sergey-tihon/streamdeck-homebridge",
-    "Version": "1.5.0",
-    "Category": "Homebridge",
-    "CategoryIcon": "resources/pluginIcon",
-    "OS": [
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Switch accessory characteristic (Turn on or off).",
+      "UUID": "com.sergeytihon.homebridge.switch"
+    },
+    {
+      "Icon": "resources/actions/set",
+      "Name": "Set state",
+      "States": [
         {
-            "Platform": "mac",
-            "MinimumVersion": "10.11"
-        },
-        {
-            "Platform": "windows",
-            "MinimumVersion": "10"
+          "Image": "resources/actions/set",
+          "Name": "Set"
         }
-    ],
-    "Software": {
-        "MinimumVersion": "6.0"
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Set accessory characteristic to predefined state.",
+      "UUID": "com.sergeytihon.homebridge.set"
+    },
+    {
+      "Icon": "resources/pluginIcon",
+      "Name": "Open Homebridge UI",
+      "States": [
+        {
+          "Image": "resources/pluginIcon",
+          "Name": "Website"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Open Homebridge UI",
+      "UUID": "com.sergeytihon.homebridge.config-ui"
     }
+  ],
+  "Category": "Homebridge",
+  "CategoryIcon": "resources/pluginIcon",
+  "CodePath": "index.html",
+  "Description": "Control your Homebridge accessories",
+  "PropertyInspectorPath": "pi.html",
+  "Icon": "resources/pluginIcon",
+  "URL": "https://github.com/sergey-tihon/streamdeck-homebridge",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.4"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "UUID": "com.sergeytihon.homebridge"
 }
