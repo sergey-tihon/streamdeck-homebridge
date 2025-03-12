@@ -213,8 +213,8 @@ type TouchTapActionPayload = {
     hold: bool
 }
 
-type DialPressActionPayload = {
-    /// TThis JSON object contains data that you can set and are stored persistently.
+type EncoderPayload = {
+    /// This JSON object contains data that you can set and are stored persistently.
     settings: obj
     /// The coordinates of the action triggered.
     coordinates: Coordinates
@@ -222,8 +222,8 @@ type DialPressActionPayload = {
     pressed: bool
 }
 
-type DialRotateActionPayload = {
-    /// TThis JSON object contains data that you can set and are stored persistently.
+type DialRotatePayload = {
+    /// This JSON object contains data that you can set and are stored persistently.
     settings: obj
     /// The coordinates of the action triggered.
     coordinates: Coordinates
@@ -231,4 +231,15 @@ type DialRotateActionPayload = {
     ticks: int
     /// Boolean which is true on rotation when encoder pressed
     pressed: bool
+}
+
+type SetTriggerDescriptionPayload = {
+    /// Touchscreen "long-touch" interaction behavior description; when undefined, the description will not be shown.
+    longTouch: string
+    /// Dial "push" (press) interaction behavior description; when undefined, the description will not be shown.
+    push: string
+    /// Dial rotation interaction behavior description; when undefined, the description will not be shown.
+    rotate: string
+    /// Touchscreen "touch" interaction behavior description; when undefined, the description will not be shown.
+    touch: string
 }
