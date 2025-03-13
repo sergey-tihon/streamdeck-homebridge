@@ -5,7 +5,7 @@ open StreamDeck.SDK.Dto
 open StreamDeck.SDK.PiModel
 open StreamDeck.Homebridge.PiView
 
-let createPiAgent(dispatch: PiMsg -> unit) : MailboxProcessor<PiInEvent> =
+let createPiAgent(dispatch: PiMsg -> unit) : MailboxProcessor<PiEvent> =
     MailboxProcessor.Start(fun inbox ->
         let rec loop() =
             async {
@@ -13,16 +13,16 @@ let createPiAgent(dispatch: PiMsg -> unit) : MailboxProcessor<PiInEvent> =
                 console.log($"PI message is: %A{msg}", msg)
 
                 match msg with
-                | PiInEvent.Connected(startArgs, replyAgent) ->
-                    replyAgent.Post <| PiOutEvent.GetGlobalSettings
+                | PiEvent.Connected(startArgs, replyAgent) ->
+                    replyAgent.Post <| PiCommand.GetGlobalSettings
                     dispatch <| PiMsg.PiConnected(startArgs, replyAgent)
-                | PiInEvent.DidReceiveSettings(_, payload) ->
-                    Domain.tryParse<Domain.ActionSetting>(payload.settings)
+                | PiEvent.DidReceiveSettings(_, payload) ->
+                    Domain.tryParse<Domain.ActionSetting> payload.settings
                     |> Option.iter(PiMsg.ActionSettingReceived >> dispatch)
-                | PiInEvent.DidReceiveGlobalSettings(settings) ->
-                    Domain.tryParse<Domain.GlobalSettings>(settings)
+                | PiEvent.DidReceiveGlobalSettings settings ->
+                    Domain.tryParse<Domain.GlobalSettings> settings
                     |> Option.iter(PiMsg.GlobalSettingsReceived >> dispatch)
-                | PiInEvent.SendToPropertyInspector _ -> ()
+                | PiEvent.DidReceivePluginMessage _ -> ()
 
                 return! loop()
             }
