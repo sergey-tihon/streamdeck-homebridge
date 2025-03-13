@@ -6,7 +6,7 @@ open StreamDeck.SDK.PluginModel
 open System
 
 type PluginInnerState = {
-    replyAgent: MailboxProcessor<PluginOutEvent>
+    replyAgent: MailboxProcessor<PluginCommand>
     client: Client.HomebridgeClient option
     lastCharacteristicUpdate: DateTime
     characteristics: Map<string * string, Client.AccessoryServiceCharacteristic>
@@ -18,14 +18,14 @@ type PluginInnerState = {
 let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.ActionPayload) =
     let onError(message: string) =
         console.error(message)
-        state.replyAgent.Post <| PluginOutEvent.LogMessage message
-        state.replyAgent.Post <| PluginOutEvent.ShowAlert event.context
+        state.replyAgent.Post <| PluginCommand.LogMessage message
+        state.replyAgent.Post <| PluginCommand.ShowAlert event.context
 
     async {
         match event.action with
         | Domain.ActionName.ConfigUi ->
             match state.client with
-            | Some(client) -> state.replyAgent.Post <| PluginOutEvent.OpenUrl client.Host
+            | Some(client) -> state.replyAgent.Post <| PluginCommand.OpenUrl client.Host
             | _ -> onError "Global config is not provided"
         | Domain.ActionName.Switch ->
             let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
@@ -47,10 +47,10 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                         let updatedValue = ch'.value.Value :?> int
 
                         if targetValue = updatedValue then
-                            state.replyAgent.Post <| PluginOutEvent.ShowOk event.context
+                            state.replyAgent.Post <| PluginCommand.ShowOk event.context
                     | Error e -> onError e
                 | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
-            | _ -> onError "Action is not properly configured"
+                | _ -> onError "Action is not properly configured"
         | Domain.ActionName.Set ->
             let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
 
@@ -67,7 +67,7 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                     let currentValue = ch.value.Value :?> float
 
                     if abs(targetValue - currentValue) < 1e-8 then
-                        state.replyAgent.Post <| PluginOutEvent.ShowOk event.context
+                        state.replyAgent.Post <| PluginCommand.ShowOk event.context
                 | Error e -> onError e
             | _ -> onError "Action is not properly configured"
         | _ -> onError $"Action {event.action} is not yet supported"
@@ -83,7 +83,7 @@ let updateAccessories(state: PluginInnerState) =
             let! accessories =
                 state.client
                 |> Option.map(fun client -> client.GetAccessories())
-                |> Option.defaultValue(async { return Error("Homedbridge client is not set yet") })
+                |> Option.defaultValue(async { return Error "Homedbridge client is not set yet" })
 
             let characteristics =
                 match accessories with
@@ -122,7 +122,7 @@ let updateActions(state: PluginInnerState) =
                         let chValue = ch.value.Value :?> int
 
                         if actionState <> chValue then
-                            state.replyAgent.Post <| PluginOutEvent.SetState(context, chValue)
+                            state.replyAgent.Post <| PluginCommand.SetState(context, chValue)
                             (fst value, Some(chValue))
                         else
                             value
@@ -136,8 +136,8 @@ let updateActions(state: PluginInnerState) =
     }
 
 
-let createPluginAgent() : MailboxProcessor<PluginInEvent> =
-    let mutable agent: MailboxProcessor<PluginInEvent> option = None
+let createPluginAgent() : MailboxProcessor<PluginEvent> =
+    let mutable agent: MailboxProcessor<PluginEvent> option = None
 
     let updateTimer(state: PluginInnerState) =
         if state.timerId.IsSome then
@@ -148,7 +148,7 @@ let createPluginAgent() : MailboxProcessor<PluginInEvent> =
                 None
             else
                 window.setInterval(
-                    (fun _ -> agent.Value.Post(PluginInEvent.SystemDidWakeUp)),
+                    (fun _ -> agent.Value.Post(PluginEvent.SystemDidWakeUp)),
                     1000 * state.updateInterval,
                     [||]
                 )
@@ -164,8 +164,8 @@ let createPluginAgent() : MailboxProcessor<PluginInEvent> =
                     let! msg = inbox.Receive()
 
                     match msg with
-                    | PluginInEvent.Connected(_, replyAgent) ->
-                        replyAgent.Post <| PluginOutEvent.GetGlobalSettings
+                    | PluginEvent.Connected(_, replyAgent) ->
+                        replyAgent.Post <| PluginCommand.GetGlobalSettings
 
                         let state = {
                             replyAgent = replyAgent
@@ -189,7 +189,7 @@ let createPluginAgent() : MailboxProcessor<PluginInEvent> =
                     console.log($"Plugin message is: %A{msg}", msg)
 
                     match msg with
-                    | PluginInEvent.DidReceiveGlobalSettings settings ->
+                    | PluginEvent.DidReceiveGlobalSettings settings ->
                         let state =
                             match Domain.tryParse<Domain.GlobalSettings>(settings) with
                             | Some(settings) ->
@@ -202,15 +202,15 @@ let createPluginAgent() : MailboxProcessor<PluginInEvent> =
                             | _ -> state
 
                         return! loop state
-                    | PluginInEvent.KeyUp(event, payload) ->
+                    | PluginEvent.KeyUp(event, payload) ->
                         let! state = updateActions state
                         do! processKeyUp state event payload
                         return! loop state
-                    | PluginInEvent.SystemDidWakeUp ->
+                    | PluginEvent.SystemDidWakeUp ->
                         // Fake action triggered by timer to update buttons state
                         let! state = updateActions state
                         return! loop state
-                    | PluginInEvent.WillAppear(event, payload) ->
+                    | PluginEvent.WillAppear(event, payload) ->
                         let! state = updateActions state
 
                         let state =
@@ -226,7 +226,7 @@ let createPluginAgent() : MailboxProcessor<PluginInEvent> =
                             |> updateTimer
 
                         return! loop state
-                    | PluginInEvent.WillDisappear(event, _) ->
+                    | PluginEvent.WillDisappear(event, _) ->
                         let actions = state.visibleActions |> Map.remove event.context
 
                         let state = {

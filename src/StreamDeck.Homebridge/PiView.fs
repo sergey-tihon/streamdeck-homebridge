@@ -11,7 +11,7 @@ open StreamDeck.SDK.Components
 
 type PiModel = {
     IsDevMode: bool
-    ReplyAgent: MailboxProcessor<PiOutEvent> option
+    ReplyAgent: MailboxProcessor<PiCommand> option
     ServerInfo: Domain.GlobalSettings
     Client: Result<Client.HomebridgeClient, string>
 
@@ -27,7 +27,7 @@ type PiModel = {
 
 [<RequireQualifiedAccess>]
 type PiMsg =
-    | PiConnected of startArgs: StartArgs * replyAgent: MailboxProcessor<PiOutEvent>
+    | PiConnected of startArgs: StartArgs * replyAgent: MailboxProcessor<PiCommand>
     | GlobalSettingsReceived of Domain.GlobalSettings
     | ActionSettingReceived of Domain.ActionSetting
 
@@ -153,7 +153,7 @@ let update (msg: PiMsg) (model: PiModel) =
                 let! result = client.TestAuth()
 
                 match manual, result with
-                | true, Ok _ -> model |> sdDispatch(PiOutEvent.SetGlobalSettings model.ServerInfo)
+                | true, Ok _ -> model |> sdDispatch(PiCommand.SetGlobalSettings model.ServerInfo)
                 | _ -> ()
 
                 result
@@ -255,7 +255,7 @@ let update (msg: PiMsg) (model: PiModel) =
                 }
         }
 
-        model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
+        model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
         model', Cmd.none
     | PiMsg.SelectCharacteristic characteristicType ->
         let targetValue =
@@ -278,7 +278,7 @@ let update (msg: PiMsg) (model: PiModel) =
                 }
         }
 
-        model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
+        model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
         model', Cmd.none
     | PiMsg.ChangeTargetValue targetValue ->
         let model' = {
@@ -289,7 +289,7 @@ let update (msg: PiMsg) (model: PiModel) =
                 }
         }
 
-        model |> sdDispatch(PiOutEvent.SetSettings model'.ActionSetting)
+        model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
         model', Cmd.none
     | PiMsg.ToggleCharacteristic ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
@@ -307,7 +307,7 @@ let update (msg: PiMsg) (model: PiModel) =
                                 client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
 
                             match accessory' with
-                            | Ok accessory' -> model |> sdDispatch(PiOutEvent.SendToPlugin accessory')
+                            | Ok accessory' -> model |> sdDispatch(PiCommand.SendToPlugin accessory')
                             | Error e -> console.error(e)
                         | Error e -> console.error(e)
                     }
@@ -319,7 +319,7 @@ let update (msg: PiMsg) (model: PiModel) =
                             client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
 
                         match accessory' with
-                        | Ok accessory' -> model |> sdDispatch(PiOutEvent.SendToPlugin accessory')
+                        | Ok accessory' -> model |> sdDispatch(PiCommand.SendToPlugin accessory')
                         | Error e -> console.error(e)
                     }
                     |> Async.StartImmediate
