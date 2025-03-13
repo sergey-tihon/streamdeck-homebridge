@@ -41,18 +41,20 @@ and ColorInfo = {
     mouseDownColor: string
 }
 
+/// Information about the newly connected device.
 and DeviceInfo = {
-    /// An opaque value identifying the device.
-    id: string option
-    /// The name of the device set by the user.
+    /// Name of the device, as specified by the user in the Stream Deck application.
     name: string
-    /// The number of columns and rows of keys that the device owns.
+    /// Number of action slots, excluding dials / touchscreens, available to the device.
     size: DeviceSize
-    /// Type of device. Possible values are `kESDSDKDeviceType_StreamDeck` (0), `kESDSDKDeviceType_StreamDeckMini` (1), `kESDSDKDeviceType_StreamDeckXL` (2), `kESDSDKDeviceType_StreamDeckMobile` (3) and `kESDSDKDeviceType_CorsairGKeys` (4). This parameter parameter won't be present if you never plugged a device to the computer.
-    ``type``: int
+    /// Type of the device that was connected, e.g. Stream Deck +, Stream Deck Pedal, etc. See DeviceType.
+    ``type``: DeviceType
 }
 
 and DeviceSize = { columns: int; rows: int }
+
+/// Type of the device that was connected, e.g. Stream Deck +, Stream Deck Pedal, etc. See DeviceType.
+and DeviceType = int
 
 
 type ActionInfo = {
@@ -91,71 +93,60 @@ type StartArgs = {
 
 
 type Event = {
-    /// The action unique identifier. If your plugin supports multiple actions, you should use this value to see which action was triggered.
+    /// Unique identifier of the action as defined within the plugin's manifest (Actions[].UUID) e.g. "com.elgato.wavelink.mute".
     action: string
-    /// Event name.
+    /// Name of the event used to identify what occurred.
     event: string
-    /// An opaque value identifying the instance's action. You will need to pass this opaque value to several APIs like the setTitle API.
+    /// Identifies the instance of an action that caused the event, i.e. the specific key or dial. This identifier can be used to provide feedback to the Stream Deck, persist and request settings associated with the action instance, etc.
     context: string
-    /// An opaque value identifying the device.
+    /// Unique identifier of the Stream Deck device that this event is associated with.
     device: string
-    /// A json object.
+    /// Contextualized information for this event.
     payload: obj
 }
 
 type ActionPayload = {
-    /// This json object contains persistently stored data.
-    settings: obj
-    /// The coordinates of the action triggered.
-    coordinates: Coordinates
-    /// This is a parameter that is only set when the action has multiple states defined in its manifest.json. The 0-based value contains the current state of the action.
-    state: int option
-    /// This is a parameter that is only set when the action is triggered with a specific value from a Multi Action. For example if the user sets the Game Capture Record action to be disabled in a Multi Action, you would see the value 1. Only the value 0 and 1 are valid.
-    userDesiredState: int option
-    /// Boolean indicating if the action is inside a Multi Action.
-    isInMultiAction: bool
-}
-
-type AppearanceActionPayload = {
-    /// This json object contains persistently stored data.
-    settings: obj
-    /// The coordinates of the action triggered.
-    coordinates: Coordinates
-    /// This is a parameter that is only set when the action has multiple states defined in its manifest.json. The 0-based value contains the current state of the action.
-    state: int option
-    /// Boolean indicating if the action is inside a Multi Action.
-    isInMultiAction: bool
-    /// The string holds the name of the controller of the current action. Values include "Keypad" and "Encoder".
+    /// Defines the controller type the action is applicable to. Keypad refers to a standard action on a Stream Deck device, e.g. 1 of the 15 buttons on the Stream Deck MK.2, or a pedal on the Stream Deck Pedal, etc., whereas an Encoder refers to a dial / touchscreen on the Stream Deck +.
     controller: string
+    /// Determines whether the action is part of a multi-action.
+    isInMultiAction: bool
+    /// Settings associated with the action instance.
+    settings: obj
+    /// The coordinates of the action triggered.
+    coordinates: Coordinates option
+    /// Current state of the action; only applicable to actions that have multiple states defined within the manifest.json file.
+    state: int option
 }
 
 type ActionTitlePayload = {
-    /// This json object contains data that you can set and is stored persistently
-    settings: obj
-    /// The coordinates of the action triggered.
+    /// Defines the controller type the action is applicable to. Keypad refers to a standard action on a Stream Deck device, e.g. 1 of the 15 buttons on the Stream Deck MK.2, or a pedal on the Stream Deck Pedal, etc., whereas an Encoder refers to a dial / touchscreen on the Stream Deck +.
+    controller: string
+    /// Coordinates that identify the location of an action.
     coordinates: Coordinates
-    /// This value indicates for which state of the action the title or title parameters have been changed.
+    /// Settings associated with the action instance.
+    settings: obj
+    /// Current state of the action; only applicable to actions that have multiple states defined within the manifest.json file.
     state: int
-    /// The new title.
+    /// Title of the action, as specified by the user or dynamically by the plugin.
     title: string
-    /// A json object describing the new title parameters.
+    /// Defines aesthetic properties that determine how the title should be rendered.
     titleParameters: ActionTitleParameters
 }
 
 and ActionTitleParameters = {
-    /// The font family for the title.
+    /// Font-family the title will be rendered with.
     fontFamily: string
-    /// The font size for the title.
+    /// Font-size the title will be rendered in.
     fontSize: int
-    /// The font style for the title.
+    /// Typography of the title. "" | "Bold Italic" | "Bold" | "Italic" | "Regular"
     fontStyle: string
     /// Boolean indicating an underline under the title.
     fontUnderline: bool
-    /// Boolean indicating if the title is visible.
+    /// Determines whether the user has opted to show, or hide the title for this action instance.
     showTitle: bool
-    /// Vertical alignment of the title. Possible values are "top", "bottom" and "middle".
+    /// Alignment of the title. "bottom" | "middle" | "top"
     titleAlignment: string
-    /// Title color.
+    /// Color of the title, represented as a hexadecimal value.
     titleColor: string
 }
 
@@ -164,19 +155,20 @@ type ApplicationEvent = {
     payload: ApplicationPayload
 }
 
+/// Payload containing information about the application that triggered the event.
 and ApplicationPayload = {
-    /// The identifier of the application that has been launched.
+    /// Name of the application that triggered the event.
     application: string
 }
 
 type Target = int
 
 type DeviceEvent = {
-    /// Event name.
+    /// Name of the event used to identify what occurred.
     event: string
-    /// An opaque value identifying the device.
+    /// Unique identifier of the Stream Deck device that this event is associated with.
     device: string
-    /// A json object containing information about the device.
+    /// Information about the newly connected device.
     deviceInfo: DeviceInfo option
 }
 
@@ -204,34 +196,44 @@ type SetFeedbackLayoutPayload = {
 }
 
 type TouchTapActionPayload = {
-    /// This JSON object contains data that you can set and are stored persistently.
-    settings: obj
+    /// Defines the controller type the action is applicable to. Keypad refers to a standard action on a Stream Deck device, e.g. 1 of the 15 buttons on the Stream Deck MK.2, or a pedal on the Stream Deck Pedal, etc., whereas an Encoder refers to a dial / touchscreen on the Stream Deck +.
+    controller: string
     /// The coordinates of the action triggered.
     coordinates: Coordinates
-    /// The array which holds (x, y) coordinates as a position of tap inside of LCD slot associated with action.
-    tapPos: int[]
     /// Boolean which is true when long tap happened
     hold: bool
+    /// This JSON object contains data that you can set and are stored persistently.
+    settings: obj
+    /// The array which holds (x, y) coordinates as a position of tap inside of LCD slot associated with action.
+    tapPos: int[]
 }
 
 type EncoderPayload = {
-    /// This JSON object contains data that you can set and are stored persistently.
+    /// Defines the controller type the action is applicable to. Keypad refers to a standard action on a Stream Deck device, e.g. 1 of the 15 buttons on the Stream Deck MK.2, or a pedal on the Stream Deck Pedal, etc., whereas an Encoder refers to a dial / touchscreen on the Stream Deck +.
+    controller: string
+    /// Settings associated with the action instance.
     settings: obj
-    /// The coordinates of the action triggered.
+    /// Coordinates that identify the location of the action.
     coordinates: Coordinates
-    /// Boolean which is true on encoder pressed, else false on released
-    pressed: bool
 }
 
 type DialRotatePayload = {
-    /// This JSON object contains data that you can set and are stored persistently.
+    /// Settings associated with the action instance.
     settings: obj
-    /// The coordinates of the action triggered.
+    /// Coordinates that identify the location of the action.
     coordinates: Coordinates
-    /// The integer which holds the number of "ticks" on encoder rotation. Positive values are for clockwise rotation, negative values are for counterclockwise rotation, zero value is never happen
+    /// Defines the controller type the action is applicable to. Keypad refers to a standard action on a Stream Deck device, e.g. 1 of the 15 buttons on the Stream Deck MK.2, or a pedal on the Stream Deck Pedal, etc., whereas an Encoder refers to a dial / touchscreen on the Stream Deck +.
+    controller: string
+    /// Number of ticks the dial was rotated; this can be a positive (clockwise) or negative (counter-clockwise) number.
     ticks: int
-    /// Boolean which is true on rotation when encoder pressed
+    /// Determines whether the dial was pressed whilst the rotation occurred.
     pressed: bool
+}
+
+/// Payload containing information about the URL that triggered the event.
+type DidReceiveDeepLinkPayload = {
+    /// The deep-link URL, with the prefix omitted.
+    url: string
 }
 
 type SetTriggerDescriptionPayload = {

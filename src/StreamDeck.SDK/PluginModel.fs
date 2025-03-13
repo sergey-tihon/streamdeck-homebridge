@@ -13,9 +13,9 @@ type PluginEvent =
     /// Occurs when a monitored application terminates. Monitored applications can be defined in the manifest.json file via the Manifest.ApplicationsToMonitor property. See also ApplicationDidLaunch.
     | ApplicationDidTerminate of applicationId: string
     /// Occurs when a Stream Deck device is connected. See also DeviceDidDisconnect.
-    | DeviceDidConnect of event: DeviceEvent
+    | DeviceDidConnect of device: string * DeviceInfo: DeviceInfo
     /// Occurs when a Stream Deck device is disconnected. See also DeviceDidConnect.
-    | DeviceDidDisconnect of event: DeviceEvent
+    | DeviceDidDisconnect of device: string
     /// Occurs when the user presses a dial (Stream Deck +). See also DialUp.
     | DialDown of event: Event * payload: EncoderPayload
     /// Occurs when the user rotates a dial (Stream Deck +).
@@ -45,9 +45,9 @@ type PluginEvent =
     /// Occurs when the user taps the touchscreen (Stream Deck +).
     | TouchTap of event: Event * payload: TouchTapActionPayload
     /// Occurs when an action appears on the Stream Deck due to the user navigating to another page, profile, folder, etc. This also occurs during startup if the action is on the "front page". An action refers to all types of actions, e.g. keys, dials, touchscreens, pedals, etc.
-    | WillAppear of event: Event * payload: AppearanceActionPayload
+    | WillAppear of event: Event * payload: ActionPayload
     /// Occurs when an action disappears from the Stream Deck due to the user navigating to another page, profile, folder, etc. An action refers to all types of actions, e.g. keys, dials, touchscreens, pedals, etc.
-    | WillDisappear of event: Event * payload: AppearanceActionPayload
+    | WillDisappear of event: Event * payload: ActionPayload
 
 and [<RequireQualifiedAccess>] PluginCommand =
     /// Gets the global settings associated with the plugin. Causes DidReceiveGlobalSettings to be emitted.
@@ -214,27 +214,46 @@ let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginEvent>) =
 
             let pEvent =
                 match event.event with
+                | "applicationDidLaunch" ->
+                    let p = event.payload :?> ApplicationPayload
+                    Some(PluginEvent.ApplicationDidLaunch p.application)
+                | "applicationDidTerminate" ->
+                    let p = event.payload :?> ApplicationPayload
+                    Some(PluginEvent.ApplicationDidTerminate p.application)
+                | "deviceDidConnect" ->
+                    let e = json :?> DeviceEvent
+                    Some(PluginEvent.DeviceDidConnect(e.device, e.deviceInfo.Value))
+                | "deviceDidDisconnect" ->
+                    let e = json :?> DeviceEvent
+                    Some(PluginEvent.DeviceDidDisconnect e.device)
+                | "dialDown" ->
+                    let p = event.payload :?> EncoderPayload
+                    Some(PluginEvent.DialDown(event, p))
+                | "dialRotate" ->
+                    let p = event.payload :?> DialRotatePayload
+                    Some(PluginEvent.DialRotate(event, p))
+                | "dialUp" ->
+                    let p = event.payload :?> EncoderPayload
+                    Some(PluginEvent.DialDown(event, p))
+                | "didReceiveDeepLink" ->
+                    let p = event.payload :?> DidReceiveDeepLinkPayload
+                    Some(PluginEvent.DidReceiveDeepLink p.url)
+                | "didReceiveGlobalSettings" -> Some(PluginEvent.DidReceiveGlobalSettings payload.settings)
+                | "sendToPlugin" -> Some(PluginEvent.DidReceivePropertyInspectorMessage event)
                 | "didReceiveSettings" -> Some(PluginEvent.DidReceiveSettings(event, payload))
-                | "didReceiveGlobalSettings" -> Some(PluginEvent.DidReceiveGlobalSettings(payload.settings))
                 | "keyDown" -> Some(PluginEvent.KeyDown(event, payload))
                 | "keyUp" -> Some(PluginEvent.KeyUp(event, payload))
-                | "touchTap" -> Some(PluginEvent.TouchTap(event, event.payload :?> TouchTapActionPayload))
-                | "dialPress" -> Some(PluginEvent.DialDown(event, event.payload :?> EncoderPayload))
-                | "dialRotate" -> Some(PluginEvent.DialRotate(event, event.payload :?> DialRotatePayload))
-                | "willAppear" -> Some(PluginEvent.WillAppear(event, event.payload :?> AppearanceActionPayload))
-                | "willDisappear" -> Some(PluginEvent.WillDisappear(event, event.payload :?> AppearanceActionPayload))
+                | "propertyInspectorDidAppear" -> Some(PluginEvent.PropertyInspectorDidAppear event)
+                | "propertyInspectorDidDisappear" -> Some(PluginEvent.PropertyInspectorDidDisappear event)
+                | "systemDidWakeUp" -> Some PluginEvent.SystemDidWakeUp
                 | "titleParametersDidChange" ->
-                    Some(PluginEvent.TitleParametersDidChange(event, event.payload :?> ActionTitlePayload))
-                | "deviceDidConnect" -> Some(PluginEvent.DeviceDidConnect(json :?> DeviceEvent))
-                | "deviceDidDisconnect" -> Some(PluginEvent.DeviceDidDisconnect(json :?> DeviceEvent))
-                | "applicationDidLaunch" ->
-                    Some(PluginEvent.ApplicationDidLaunch((json :?> ApplicationPayload).application))
-                | "applicationDidTerminate" ->
-                    Some(PluginEvent.ApplicationDidTerminate((json :?> ApplicationPayload).application))
-                | "systemDidWakeUp" -> Some(PluginEvent.SystemDidWakeUp)
-                | "propertyInspectorDidAppear" -> Some(PluginEvent.PropertyInspectorDidAppear(event))
-                | "propertyInspectorDidDisappear" -> Some(PluginEvent.PropertyInspectorDidDisappear(event))
-                | "sendToPlugin" -> Some(PluginEvent.DidReceivePropertyInspectorMessage(event))
+                    let p = event.payload :?> ActionTitlePayload
+                    Some(PluginEvent.TitleParametersDidChange(event, p))
+                | "touchTap" ->
+                    let p = event.payload :?> TouchTapActionPayload
+                    Some(PluginEvent.TouchTap(event, p))
+                | "willAppear" -> Some(PluginEvent.WillAppear(event, payload))
+                | "willDisappear" -> Some(PluginEvent.WillDisappear(event, payload))
                 | _ ->
                     console.warn($"Unexpected event ({event.event}) received by Plugin", event)
                     None

@@ -50,7 +50,7 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                             state.replyAgent.Post <| PluginCommand.ShowOk event.context
                     | Error e -> onError e
                 | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
-            | _ -> onError "Action is not properly configured"
+                | _ -> onError "Action is not properly configured"
         | Domain.ActionName.Set ->
             let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
 
@@ -83,7 +83,7 @@ let updateAccessories(state: PluginInnerState) =
             let! accessories =
                 state.client
                 |> Option.map(fun client -> client.GetAccessories())
-                |> Option.defaultValue(async { return Error("Homedbridge client is not set yet") })
+                |> Option.defaultValue(async { return Error "Homedbridge client is not set yet" })
 
             let characteristics =
                 match accessories with
