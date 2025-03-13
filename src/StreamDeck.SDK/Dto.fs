@@ -169,6 +169,8 @@ and ApplicationPayload = {
     application: string
 }
 
+type Target = int
+
 type DeviceEvent = {
     /// Event name.
     event: string
@@ -178,23 +180,22 @@ type DeviceEvent = {
     deviceInfo: DeviceInfo option
 }
 
-
 type SetTitlePayload = {
     /// The title to display. If there is no title parameter, the title is reset to the title set by the user.
     title: string
     /// Specify if you want to display the title on the hardware and software (0), only on the hardware (1) or only on the software (2). Default is 0.
-    target: int option
+    target: Target option
     /// A 0-based integer value representing the state of an action with multiple states. This is an optional parameter. If not specified, the title is set to all states.
-    state: int
+    state: int option
 }
 
 type SetImagePayload = {
     /// The image to display encoded in base64 with the image format declared in the mime type (PNG, JPEG, BMP, ...). svg is also supported. If no image is passed, the image is reset to the default image from the manifest.
     image: string
     /// Specify if you want to display the title on the hardware and software (0), only on the hardware (1) or only on the software (2). Default is 0.
-    target: int option
+    target: Target option
     /// A 0-based integer value representing the state of an action with multiple states. This is an optional parameter. If not specified, the image is set to all states.
-    state: int
+    state: int option
 }
 
 type SetFeedbackLayoutPayload = {

@@ -6,8 +6,8 @@ open Browser.Types
 open Dto
 
 [<RequireQualifiedAccess>]
-type PluginInEvent =
-    | Connected of startArgs: StartArgs * replyAgent: MailboxProcessor<PluginOutEvent>
+type PluginEvent =
+    | Connected of startArgs: StartArgs * replyAgent: MailboxProcessor<PluginCommand>
     /// Occurs when a monitored application is launched. Monitored applications can be defined in the manifest.json file via the Manifest.ApplicationsToMonitor property. See also ApplicationDidTerminate.
     | ApplicationDidLaunch of applicationId: string
     /// Occurs when a monitored application terminates. Monitored applications can be defined in the manifest.json file via the Manifest.ApplicationsToMonitor property. See also ApplicationDidLaunch.
@@ -49,7 +49,7 @@ type PluginInEvent =
     /// Occurs when an action disappears from the Stream Deck due to the user navigating to another page, profile, folder, etc. An action refers to all types of actions, e.g. keys, dials, touchscreens, pedals, etc.
     | WillDisappear of event: Event * payload: AppearanceActionPayload
 
-and [<RequireQualifiedAccess>] PluginOutEvent =
+and [<RequireQualifiedAccess>] PluginCommand =
     /// Gets the global settings associated with the plugin. Causes DidReceiveGlobalSettings to be emitted.
     | GetGlobalSettings
     /// Gets the settings associated with an instance of an action. Causes DidReceiveSettings to be emitted.
@@ -59,13 +59,13 @@ and [<RequireQualifiedAccess>] PluginOutEvent =
     /// Opens the URL in the user's default browser.
     | OpenUrl of url: string
     /// Sends a message to the property inspector.
-    | SendToPropertyInspector of context: string * action: string * payload: obj
+    | SendToPropertyInspector of context: string * payload: obj
     /// Set's the feedback of an existing layout associated with an action instance.
     | SetFeedback of context: string * payload: Dictionary<string, obj>
     /// Sets the layout associated with an action instance.
     | SetFeedbackLayout of context: string * payload: SetFeedbackLayoutPayload
     /// Sets the global settings associated with the plugin.
-    | SetGlobalSettings of payload: obj
+    | SetGlobalSettings of context: string * payload: obj
     /// Sets the image associated with an action instance.
     | SetImage of context: string * payload: SetImagePayload
     /// Sets the settings associated with an instance of an action.
@@ -81,9 +81,9 @@ and [<RequireQualifiedAccess>] PluginOutEvent =
     /// Temporarily shows an "OK" (i.e. success), in the form of a check-mark in a green circle, on the action instance. Used to provide visual feedback when an action successfully executed.
     | ShowOk of context: string
     /// Switches to the profile, as distributed by the plugin, on the specified device.
-    | SwitchToProfile of device: string * profileName: string
+    | SwitchToProfile of device: string * profileName: string * page: string
 
-let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor<PluginOutEvent> =
+let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor<PluginCommand> =
     let inPluginUUID = args.UUID
 
     MailboxProcessor.Start(fun inbox ->
@@ -96,103 +96,96 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
                 console.log($"Plugin sent event %A{msg}", msg)
 
                 match msg with
-                | PluginOutEvent.SetSettings(context, payload) ->
-                    sendJson {|
-                        event = "setSettings"
-                        // An opaque value identifying the instance's action.
-                        context = context
-                        payload = payload
-                    |}
-                | PluginOutEvent.GetSettings context ->
-                    sendJson {|
-                        event = "getSettings"
-                        // An opaque value identifying the instance's action
-                        context = context
-                    |}
-                | PluginOutEvent.SetGlobalSettings(payload) ->
-                    sendJson {|
-                        event = "setGlobalSettings"
-                        // An opaque value identifying the plugin (inPluginUUID). This value is received during the Registration procedure.
-                        context = inPluginUUID
-                        payload = payload
-                    |}
-                | PluginOutEvent.GetGlobalSettings ->
+                | PluginCommand.GetGlobalSettings ->
                     sendJson {|
                         event = "getGlobalSettings"
-                        // An opaque value identifying the plugin (inPluginUUID). This value is received during the Registration procedure.
                         context = inPluginUUID
                     |}
-                | PluginOutEvent.OpenUrl url ->
+                | PluginCommand.GetSettings context ->
+                    sendJson {|
+                        event = "getSettings"
+                        context = context
+                    |}
+                | PluginCommand.OpenUrl url ->
                     sendJson {|
                         event = "openUrl"
                         payload = {| url = url |}
                     |}
-                | PluginOutEvent.LogMessage message ->
+                | PluginCommand.LogMessage message ->
                     sendJson {|
                         event = "logMessage"
                         payload = {| message = message |}
                     |}
-                | PluginOutEvent.SetTitle(context, payload) ->
+                | PluginCommand.SendToPropertyInspector(context, payload) ->
                     sendJson {|
-                        event = "setTitle"
-                        // An opaque value identifying the instance's action you want to modify.
+                        event = "sendToPropertyInspector"
                         context = context
                         payload = payload
                     |}
-                | PluginOutEvent.SetImage(context, payload) ->
-                    sendJson {|
-                        event = "setImage"
-                        // An opaque value identifying the instance's action you want to modify.
-                        context = context
-                        payload = payload
-                    |}
-                | PluginOutEvent.SetFeedback(context, payload) ->
+                | PluginCommand.SetFeedback(context, payload) ->
                     sendJson {|
                         event = "setFeedback"
-                        // A value to Identify the instance's action you want to modify.
                         context = context
                         payload = payload
                     |}
-                | PluginOutEvent.SetFeedbackLayout(context, payload) ->
+                | PluginCommand.SetFeedbackLayout(context, payload) ->
                     sendJson {|
                         event = "setFeedbackLayout"
                         context = context
                         payload = payload
                     |}
-                | PluginOutEvent.ShowAlert context ->
+                | PluginCommand.SetGlobalSettings(context, payload) ->
                     sendJson {|
-                        event = "showAlert"
-                        // An opaque value identifying the instance's action.
+                        event = "setGlobalSettings"
                         context = context
+                        payload = payload
                     |}
-                | PluginOutEvent.ShowOk context ->
+                | PluginCommand.SetImage(context, payload) ->
                     sendJson {|
-                        event = "showOk"
-                        // An opaque value identifying the instance's action.
+                        event = "setImage"
                         context = context
+                        payload = payload
                     |}
-                | PluginOutEvent.SetState(context, state) ->
+                | PluginCommand.SetSettings(context, payload) ->
+                    sendJson {|
+                        event = "setSettings"
+                        context = context
+                        payload = payload
+                    |}
+                | PluginCommand.SetState(context, state) ->
                     sendJson {|
                         event = "setState"
-                        // An opaque value identifying the instance's action.
                         context = context
                         payload = {| state = state |}
                     |}
-                | PluginOutEvent.SwitchToProfile(device, profileName) ->
+                | PluginCommand.SetTitle(context, payload) ->
                     sendJson {|
-                        event = "switchToProfile"
-                        // An opaque value identifying the plugin. This value should be set to the PluginUUID received during the registration procedure.
-                        context = inPluginUUID
-                        device = device
-                        payload = {| profile = profileName |}
-                    |}
-                | PluginOutEvent.SendToPropertyInspector(context, action, payload) ->
-                    sendJson {|
-                        action = action
-                        event = "sendToPropertyInspector"
-                        // An opaque value identifying the instance's action.
+                        event = "setTitle"
                         context = context
                         payload = payload
+                    |}
+                | PluginCommand.SetTriggerDescription(context, payload) ->
+                    sendJson {|
+                        event = "setTriggerDescription"
+                        context = context
+                        payload = payload
+                    |}
+                | PluginCommand.ShowAlert context ->
+                    sendJson {|
+                        event = "showAlert"
+                        context = context
+                    |}
+                | PluginCommand.ShowOk context ->
+                    sendJson {|
+                        event = "showOk"
+                        context = context
+                    |}
+                | PluginCommand.SwitchToProfile(device, profile, page) ->
+                    sendJson {|
+                        event = "switchToProfile"
+                        context = inPluginUUID
+                        device = device
+                        payload = {| profile = profile; page = page |}
                     |}
 
                 return! loop()
@@ -200,7 +193,7 @@ let createReplyAgent (args: StartArgs) (websocket: WebSocket) : MailboxProcessor
 
         loop())
 
-let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginInEvent>) =
+let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginEvent>) =
     let websocket = Utils.createWebSocket args.Port
     let replyAgent = createReplyAgent args websocket
 
@@ -211,7 +204,7 @@ let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginInEvent>)
                 uuid = args.UUID
             |}
 
-            agent.Post <| PluginInEvent.Connected(args, replyAgent)
+            agent.Post <| PluginEvent.Connected(args, replyAgent)
 
     websocket.onmessage <-
         fun messageEvent ->
@@ -221,27 +214,27 @@ let connectPlugin (args: Dto.StartArgs) (agent: MailboxProcessor<PluginInEvent>)
 
             let pEvent =
                 match event.event with
-                | "didReceiveSettings" -> Some(PluginInEvent.DidReceiveSettings(event, payload))
-                | "didReceiveGlobalSettings" -> Some(PluginInEvent.DidReceiveGlobalSettings(payload.settings))
-                | "keyDown" -> Some(PluginInEvent.KeyDown(event, payload))
-                | "keyUp" -> Some(PluginInEvent.KeyUp(event, payload))
-                | "touchTap" -> Some(PluginInEvent.TouchTap(event, event.payload :?> TouchTapActionPayload))
-                | "dialPress" -> Some(PluginInEvent.DialDown(event, event.payload :?> EncoderPayload))
-                | "dialRotate" -> Some(PluginInEvent.DialRotate(event, event.payload :?> DialRotatePayload))
-                | "willAppear" -> Some(PluginInEvent.WillAppear(event, event.payload :?> AppearanceActionPayload))
-                | "willDisappear" -> Some(PluginInEvent.WillDisappear(event, event.payload :?> AppearanceActionPayload))
+                | "didReceiveSettings" -> Some(PluginEvent.DidReceiveSettings(event, payload))
+                | "didReceiveGlobalSettings" -> Some(PluginEvent.DidReceiveGlobalSettings(payload.settings))
+                | "keyDown" -> Some(PluginEvent.KeyDown(event, payload))
+                | "keyUp" -> Some(PluginEvent.KeyUp(event, payload))
+                | "touchTap" -> Some(PluginEvent.TouchTap(event, event.payload :?> TouchTapActionPayload))
+                | "dialPress" -> Some(PluginEvent.DialDown(event, event.payload :?> EncoderPayload))
+                | "dialRotate" -> Some(PluginEvent.DialRotate(event, event.payload :?> DialRotatePayload))
+                | "willAppear" -> Some(PluginEvent.WillAppear(event, event.payload :?> AppearanceActionPayload))
+                | "willDisappear" -> Some(PluginEvent.WillDisappear(event, event.payload :?> AppearanceActionPayload))
                 | "titleParametersDidChange" ->
-                    Some(PluginInEvent.TitleParametersDidChange(event, event.payload :?> ActionTitlePayload))
-                | "deviceDidConnect" -> Some(PluginInEvent.DeviceDidConnect(json :?> DeviceEvent))
-                | "deviceDidDisconnect" -> Some(PluginInEvent.DeviceDidDisconnect(json :?> DeviceEvent))
+                    Some(PluginEvent.TitleParametersDidChange(event, event.payload :?> ActionTitlePayload))
+                | "deviceDidConnect" -> Some(PluginEvent.DeviceDidConnect(json :?> DeviceEvent))
+                | "deviceDidDisconnect" -> Some(PluginEvent.DeviceDidDisconnect(json :?> DeviceEvent))
                 | "applicationDidLaunch" ->
-                    Some(PluginInEvent.ApplicationDidLaunch((json :?> ApplicationPayload).application))
+                    Some(PluginEvent.ApplicationDidLaunch((json :?> ApplicationPayload).application))
                 | "applicationDidTerminate" ->
-                    Some(PluginInEvent.ApplicationDidTerminate((json :?> ApplicationPayload).application))
-                | "systemDidWakeUp" -> Some(PluginInEvent.SystemDidWakeUp)
-                | "propertyInspectorDidAppear" -> Some(PluginInEvent.PropertyInspectorDidAppear(event))
-                | "propertyInspectorDidDisappear" -> Some(PluginInEvent.PropertyInspectorDidDisappear(event))
-                | "sendToPlugin" -> Some(PluginInEvent.DidReceivePropertyInspectorMessage(event))
+                    Some(PluginEvent.ApplicationDidTerminate((json :?> ApplicationPayload).application))
+                | "systemDidWakeUp" -> Some(PluginEvent.SystemDidWakeUp)
+                | "propertyInspectorDidAppear" -> Some(PluginEvent.PropertyInspectorDidAppear(event))
+                | "propertyInspectorDidDisappear" -> Some(PluginEvent.PropertyInspectorDidDisappear(event))
+                | "sendToPlugin" -> Some(PluginEvent.DidReceivePropertyInspectorMessage(event))
                 | _ ->
                     console.warn($"Unexpected event ({event.event}) received by Plugin", event)
                     None
