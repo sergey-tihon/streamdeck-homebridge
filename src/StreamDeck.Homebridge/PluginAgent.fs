@@ -70,9 +70,42 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                         state.replyAgent.Post <| PluginCommand.ShowOk event.context
                 | Error e -> onError e
             | _ -> onError "Action is not properly configured"
+        | _ -> onError $"Action {event.action} is not yet supported"
+    }
+
+let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto.DialRotatePayload) =
+    let onError(message: string) =
+        console.error message
+        state.replyAgent.Post <| PluginCommand.LogMessage message
+        state.replyAgent.Post <| PluginCommand.ShowAlert event.context
+
+    async {
+        match event.action with
         | Domain.ActionName.Adjust ->
-            // TODO: Implement adjust action
-            ()
+            let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
+
+            match state.client, actionSettings with
+            | Some client,
+              Some {
+                       AccessoryId = Some accessoryId
+                       CharacteristicType = Some characteristicType
+                   } ->
+                match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
+                | Some ch ->
+                    let currentValue = ch.value.Value :?> int
+                    let targetValue = currentValue + payload.ticks
+
+                    match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
+                    | Ok accessory ->
+                        let ch' = accessory |> PiView.getCharacteristic characteristicType
+                        let updatedValue = ch'.value.Value :?> int
+
+                        if targetValue = updatedValue then
+                            state.replyAgent.Post <| PluginCommand.ShowOk event.context
+                    | Error e -> onError e
+                | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
+            | _ -> onError "Action is not properly configured"
+
         | _ -> onError $"Action {event.action} is not yet supported"
     }
 
@@ -208,6 +241,10 @@ let createPluginAgent() : MailboxProcessor<PluginEvent> =
                     | PluginEvent.KeyUp(event, payload) ->
                         let! state = updateActions state
                         do! processKeyUp state event payload
+                        return! loop state
+                    | PluginEvent.DialRotate(event, payload) ->
+                        let! state = updateActions state
+                        do! processDialRotate state event payload
                         return! loop state
                     | PluginEvent.SystemDidWakeUp ->
                         // Fake action triggered by timer to update buttons state
