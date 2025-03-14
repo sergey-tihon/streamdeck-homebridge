@@ -42,7 +42,7 @@ type PiMsg =
     | SelectAccessory of uniqueId: string option
     | SelectCharacteristic of characteristicType: string option
     | ChangeTargetValue of targetValue: float option
-    | ToggleCharacteristic
+    | EmitEvent of payload: int option
 
 let init isDevMode =
     fun () ->
@@ -291,7 +291,7 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
         model', Cmd.none
-    | PiMsg.ToggleCharacteristic ->
+    | PiMsg.EmitEvent payload ->
         let delayedCmd(_: PiMsg -> unit) : unit =
             match model.Client, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
             | Ok client, Some selectedAccessoryId, Some characteristicType ->
@@ -320,6 +320,29 @@ let update (msg: PiMsg) (model: PiModel) =
 
                         match accessory' with
                         | Ok accessory' -> model |> sdDispatch(PiCommand.SendToPlugin accessory')
+                        | Error e -> console.error e
+                    }
+                    |> Async.StartImmediate
+                | Some Domain.ActionName.Adjust ->
+                    let delta =
+                        match payload with
+                        | Some x -> x
+                        | _ ->
+                            console.error "adjust action without payload"
+                            0
+
+                    async {
+                        match! client.GetAccessory selectedAccessoryId with
+                        | Ok accessory ->
+                            let! accessory' =
+                                let ch = accessory |> getCharacteristic characteristicType
+                                let currentValue = ch.value.Value :?> int
+                                let targetValue = currentValue + delta
+                                client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
+
+                            match accessory' with
+                            | Ok accessory' -> model |> sdDispatch(PiCommand.SendToPlugin accessory')
+                            | Error e -> console.error e
                         | Error e -> console.error e
                     }
                     |> Async.StartImmediate
@@ -482,7 +505,8 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 Html.option [ prop.value "DEFAULT" ]
                                 Html.option [ prop.value Domain.ActionName.ConfigUi; prop.text "Config UI" ]
                                 Html.option [ prop.value Domain.ActionName.Switch; prop.text "Switch" ]
-                                Html.option [ prop.value Domain.ActionName.Set; prop.text "Set state" ]
+                                Html.option [ prop.value Domain.ActionName.Set; prop.text "Set State" ]
+                                Html.option [ prop.value Domain.ActionName.Adjust; prop.text "Adjust State" ]
                             ]
                             prop.onChange(fun value ->
                                 let msg = if value = "DEFAULT" then None else Some value
@@ -500,7 +524,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             match model.ActionSetting.CharacteristicType with
                             | Some _ ->
                                 if model.IsDevMode then
-                                    Pi.button "Emit Switch action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
+                                    Pi.button "Emit Switch action" (fun _ -> dispatch <| PiMsg.EmitEvent None)
 
                                 successConfirmation
                             //characteristicDetails characteristicType accessory
@@ -544,7 +568,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                     ]
 
                                     if model.IsDevMode then
-                                        Pi.button "Emit Set action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
+                                        Pi.button "Emit Set action" (fun _ -> dispatch <| PiMsg.EmitEvent None)
 
                                     successConfirmation
                                 | _ -> ()
@@ -558,41 +582,13 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             let accessory = model.RangeAccessories |> Map.find uniqueId
                             characteristicSelector accessory
 
-                            match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
-                            | Some characteristicType, Some targetValue ->
-                                let ch = accessory |> getCharacteristic characteristicType
+                            if model.IsDevMode then
+                                Pi.button "Emit Right Rotation" (fun _ -> dispatch <| PiMsg.EmitEvent(Some 1))
 
-                                match ch.minValue, ch.minStep, ch.maxValue with
-                                | Some minValue, Some minStep, Some maxValue ->
-                                    Pi.range $"Target value ({targetValue})" [
-                                        Html.span [
-                                            prop.className "clickable"
-                                            prop.value minValue
-                                            prop.text $"{minValue}"
-                                        ]
-                                        Html.input [
-                                            prop.type' "range"
-                                            prop.min minValue
-                                            prop.max maxValue
-                                            prop.step minStep
-                                            prop.value targetValue
-                                            prop.onChange(fun (x: float) ->
-                                                let payload = Some x
-                                                dispatch <| PiMsg.ChangeTargetValue payload)
-                                        ]
-                                        Html.span [
-                                            prop.className "clickable"
-                                            prop.value maxValue
-                                            prop.text $"{maxValue}"
-                                        ]
-                                    ]
+                                Pi.button "Emit Left Rotation" (fun _ -> dispatch <| PiMsg.EmitEvent(Some -1))
 
-                                    if model.IsDevMode then
-                                        Pi.button "Emit Set action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
+                            successConfirmation
 
-                                    successConfirmation
-                                | _ -> ()
-                            | _ -> ()
                         | _ -> ()
                     | Some ty -> Html.p [ prop.text $"Unsupported action type {ty}" ]
 

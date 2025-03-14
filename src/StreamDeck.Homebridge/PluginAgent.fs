@@ -25,7 +25,7 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
         match event.action with
         | Domain.ActionName.ConfigUi ->
             match state.client with
-            | Some(client) -> state.replyAgent.Post <| PluginCommand.OpenUrl client.Host
+            | Some client -> state.replyAgent.Post <| PluginCommand.OpenUrl client.Host
             | _ -> onError "Global config is not provided"
         | Domain.ActionName.Switch ->
             let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
@@ -37,7 +37,7 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                        CharacteristicType = Some characteristicType
                    } ->
                 match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
-                | Some(ch) ->
+                | Some ch ->
                     let currentValue = ch.value.Value :?> int
                     let targetValue = 1 - currentValue
 
@@ -91,7 +91,7 @@ let updateAccessories(state: PluginInnerState) =
             let characteristics =
                 match accessories with
                 | Error _ -> state.characteristics
-                | Ok(accessories) ->
+                | Ok accessories ->
                     accessories
                     |> Array.collect(fun accessory ->
                         accessory.serviceCharacteristics
@@ -121,7 +121,7 @@ let updateActions(state: PluginInnerState) =
                   },
                   Some actionState ->
                     match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
-                    | Some(ch) when ch.value.IsSome ->
+                    | Some ch when ch.value.IsSome ->
                         let chValue = ch.value.Value :?> int
 
                         if actionState <> chValue then
