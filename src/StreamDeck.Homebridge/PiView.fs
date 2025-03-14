@@ -50,7 +50,7 @@ let init isDevMode =
             IsDevMode = isDevMode
             ReplyAgent = None
             ServerInfo = {
-                Host = "http://192.168.68.65:8581"
+                Host = "http://192.168.68.66:8581"
                 UserName = "admin"
                 Password = "admin"
                 UpdateInterval = 5
@@ -507,6 +507,50 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             | None -> ()
                         | _ -> ()
                     | Some Domain.ActionName.Set ->
+                        yield! accessorySelector model.RangeAccessories
+
+                        match model.ActionSetting.AccessoryId with
+                        | Some uniqueId when model.RangeAccessories.ContainsKey uniqueId ->
+                            let accessory = model.RangeAccessories |> Map.find uniqueId
+                            characteristicSelector accessory
+
+                            match model.ActionSetting.CharacteristicType, model.ActionSetting.TargetValue with
+                            | Some characteristicType, Some targetValue ->
+                                let ch = accessory |> getCharacteristic characteristicType
+
+                                match ch.minValue, ch.minStep, ch.maxValue with
+                                | Some minValue, Some minStep, Some maxValue ->
+                                    Pi.range $"Target value ({targetValue})" [
+                                        Html.span [
+                                            prop.className "clickable"
+                                            prop.value minValue
+                                            prop.text $"{minValue}"
+                                        ]
+                                        Html.input [
+                                            prop.type' "range"
+                                            prop.min minValue
+                                            prop.max maxValue
+                                            prop.step minStep
+                                            prop.value targetValue
+                                            prop.onChange(fun (x: float) ->
+                                                let payload = Some x
+                                                dispatch <| PiMsg.ChangeTargetValue payload)
+                                        ]
+                                        Html.span [
+                                            prop.className "clickable"
+                                            prop.value maxValue
+                                            prop.text $"{maxValue}"
+                                        ]
+                                    ]
+
+                                    if model.IsDevMode then
+                                        Pi.button "Emit Set action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
+
+                                    successConfirmation
+                                | _ -> ()
+                            | _ -> ()
+                        | _ -> ()
+                    | Some Domain.ActionName.Adjust ->
                         yield! accessorySelector model.RangeAccessories
 
                         match model.ActionSetting.AccessoryId with
