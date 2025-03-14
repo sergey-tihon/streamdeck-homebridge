@@ -86,7 +86,7 @@ let filterBoolCharacteristics =
         x.canWrite
         && hasValue x // we can modify value
         && (x.format = "bool" // it is boolean
-            || (x.format = "uint8" && x.minValue = Some 0 && x.maxValue = Some 1)) // or behave like boolean
+            || x.format = "uint8" && x.minValue = Some 0 && x.maxValue = Some 1) // or behave like boolean
     )
 
 let filterRangeCharacteristics =
@@ -106,7 +106,7 @@ let getCharacteristic characteristicType (accessory: Client.AccessoryDetails) =
 
 let sdDispatch msg (model: PiModel) =
     match model.ReplyAgent with
-    | Some(agent) -> agent.Post msg
+    | Some agent -> agent.Post msg
     | None -> console.error("Message send before replyAgent assigned", msg)
 
 let update (msg: PiMsg) (model: PiModel) =
@@ -121,9 +121,9 @@ let update (msg: PiMsg) (model: PiModel) =
         let model' =
             startArgs.ActionInfo
             |> Option.map(fun x -> x.payload.settings)
-            |> Option.bind(Domain.tryParse<Domain.ActionSetting>)
+            |> Option.bind Domain.tryParse<Domain.ActionSetting>
             |> function
-                | Some(x) -> { model' with ActionSetting = x }
+                | Some x -> { model' with ActionSetting = x }
                 | None -> model'
 
         model', Cmd.none
@@ -149,7 +149,7 @@ let update (msg: PiMsg) (model: PiModel) =
     | PiMsg.Login manual ->
         let delayedCmd(dispatch: PiMsg -> unit) : unit =
             async {
-                let client = Client.HomebridgeClient(model.ServerInfo)
+                let client = Client.HomebridgeClient model.ServerInfo
                 let! result = client.TestAuth()
 
                 match manual, result with
@@ -189,10 +189,10 @@ let update (msg: PiMsg) (model: PiModel) =
                     let layout =
                         match layout with
                         | Ok layout -> layout
-                        | Error err -> [||]
+                        | Error _ -> [||]
 
                     match! client.GetAccessories() with
-                    | Ok(accessories) ->
+                    | Ok accessories ->
                         let devicesInLayout =
                             layout
                             |> Array.collect(fun room -> room.services |> Array.map(fun x -> x.uniqueId))
@@ -260,7 +260,7 @@ let update (msg: PiMsg) (model: PiModel) =
     | PiMsg.SelectCharacteristic characteristicType ->
         let targetValue =
             match characteristicType, model.ActionSetting.AccessoryId with
-            | Some(characteristicType), Some(accessoryId) ->
+            | Some characteristicType, Some accessoryId ->
                 let ch =
                     model.Accessories
                     |> Map.find accessoryId
@@ -292,11 +292,11 @@ let update (msg: PiMsg) (model: PiModel) =
         model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
         model', Cmd.none
     | PiMsg.ToggleCharacteristic ->
-        let delayedCmd(dispatch: PiMsg -> unit) : unit =
+        let delayedCmd(_: PiMsg -> unit) : unit =
             match model.Client, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
-            | Ok(client), Some(selectedAccessoryId), Some(characteristicType) ->
+            | Ok client, Some selectedAccessoryId, Some characteristicType ->
                 match model.ActionType with
-                | Some(Domain.ActionName.Switch) ->
+                | Some Domain.ActionName.Switch ->
                     async {
                         match! client.GetAccessory selectedAccessoryId with
                         | Ok accessory ->
@@ -308,11 +308,11 @@ let update (msg: PiMsg) (model: PiModel) =
 
                             match accessory' with
                             | Ok accessory' -> model |> sdDispatch(PiCommand.SendToPlugin accessory')
-                            | Error e -> console.error(e)
-                        | Error e -> console.error(e)
+                            | Error e -> console.error e
+                        | Error e -> console.error e
                     }
                     |> Async.StartImmediate
-                | Some(Domain.ActionName.Set) ->
+                | Some Domain.ActionName.Set ->
                     async {
                         let! accessory' =
                             let targetValue = model.ActionSetting.TargetValue.Value
@@ -320,7 +320,7 @@ let update (msg: PiMsg) (model: PiModel) =
 
                         match accessory' with
                         | Ok accessory' -> model |> sdDispatch(PiCommand.SendToPlugin accessory')
-                        | Error e -> console.error(e)
+                        | Error e -> console.error e
                     }
                     |> Async.StartImmediate
                 | _ -> console.error("Unexpected action ", model.ActionType)
@@ -332,7 +332,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
 
     let accessorySelector(accessories: Map<string, Client.AccessoryDetails>) = [
         match model.ActionSetting.AccessoryId with
-        | Some(uniqueId) when not <| accessories.ContainsKey(uniqueId) ->
+        | Some uniqueId when not <| accessories.ContainsKey uniqueId ->
             Pi.message
                 "caution"
                 "red"
@@ -408,8 +408,8 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                 | _ -> ()
 
                 match model.Client with
-                | Error(error) ->
-                    if not <| System.String.IsNullOrEmpty(error) then
+                | Error error ->
+                    if not <| System.String.IsNullOrEmpty error then
                         Pi.message "caution" "red" error
 
                     Pi.input "Server" [
@@ -423,7 +423,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 model.ServerInfo with
                                     Host =
                                         if value.Length > 10 then
-                                            value.TrimEnd([| '/' |])
+                                            value.TrimEnd [| '/' |]
                                         else // we should not trim when user type only "http://"
                                             value
                             })
@@ -466,7 +466,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                         prop.onChange(fun (value: string) ->
                             {
                                 model.ServerInfo with
-                                    UpdateInterval = int(value)
+                                    UpdateInterval = int value
                             }
                             |> PiMsg.UpdateServerInfo
                             |> dispatch)
@@ -488,17 +488,17 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 let msg = if value = "DEFAULT" then None else Some value
                                 dispatch <| PiMsg.SelectActionType msg)
                         ]
-                    | Some(Domain.ActionName.ConfigUi) -> successConfirmation
-                    | Some(Domain.ActionName.Switch) ->
+                    | Some Domain.ActionName.ConfigUi -> successConfirmation
+                    | Some Domain.ActionName.Switch ->
                         yield! accessorySelector model.SwitchAccessories
 
                         match model.ActionSetting.AccessoryId with
-                        | Some(uniqueId) when model.SwitchAccessories.ContainsKey uniqueId ->
+                        | Some uniqueId when model.SwitchAccessories.ContainsKey uniqueId ->
                             let accessory = model.SwitchAccessories |> Map.find uniqueId
                             characteristicSelector accessory
 
                             match model.ActionSetting.CharacteristicType with
-                            | Some characteristicType ->
+                            | Some _ ->
                                 if model.IsDevMode then
                                     Pi.button "Emit Switch action" (fun _ -> dispatch <| PiMsg.ToggleCharacteristic)
 
@@ -506,11 +506,11 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             //characteristicDetails characteristicType accessory
                             | None -> ()
                         | _ -> ()
-                    | Some(Domain.ActionName.Set) ->
+                    | Some Domain.ActionName.Set ->
                         yield! accessorySelector model.RangeAccessories
 
                         match model.ActionSetting.AccessoryId with
-                        | Some(uniqueId) when model.RangeAccessories.ContainsKey uniqueId ->
+                        | Some uniqueId when model.RangeAccessories.ContainsKey uniqueId ->
                             let accessory = model.RangeAccessories |> Map.find uniqueId
                             characteristicSelector accessory
 
@@ -533,7 +533,7 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                             prop.step minStep
                                             prop.value targetValue
                                             prop.onChange(fun (x: float) ->
-                                                let payload = Some(x)
+                                                let payload = Some x
                                                 dispatch <| PiMsg.ChangeTargetValue payload)
                                         ]
                                         Html.span [
