@@ -584,9 +584,25 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                             characteristicSelector accessory
 
                             if model.IsDevMode then
-                                Pi.button "Emit Right Rotation" (fun _ -> dispatch <| PiMsg.EmitEvent(Some 1))
-
-                                Pi.button "Emit Left Rotation" (fun _ -> dispatch <| PiMsg.EmitEvent(Some -1))
+                                Html.div [
+                                    prop.style [ style.display.flex; style.maxWidth 344 ]
+                                    prop.children [
+                                        Html.div [
+                                            prop.style [ style.flexGrow 1 ]
+                                            prop.children [
+                                                Pi.button "Emit Left Rotation" (fun _ ->
+                                                    dispatch <| PiMsg.EmitEvent(Some -1))
+                                            ]
+                                        ]
+                                        Html.div [
+                                            prop.style [ style.flexGrow 1 ]
+                                            prop.children [
+                                                Pi.button "Emit Right Rotation" (fun _ ->
+                                                    dispatch <| PiMsg.EmitEvent(Some 1))
+                                            ]
+                                        ]
+                                    ]
+                                ]
 
                             successConfirmation
 
