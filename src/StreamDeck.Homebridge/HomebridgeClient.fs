@@ -108,7 +108,7 @@ module private Api =
                 if response.statusCode = 201 then
                     Json.tryParseAs<AuthResult> response.responseText
                 else
-                    let msg = $"Cannot authenticate to the server.\nResponse:{Json.serialize(response)}"
+                    let msg = $"Cannot authenticate to the server.\nResponse:{Json.serialize response}"
                     Error msg
         }
 
@@ -123,7 +123,7 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<AccessoryDetails[]> response.responseText
                 else
-                    Error($"Cannot get accessories list from {host}. {response.responseText}")
+                    Error $"Cannot get accessories list from {host}. {response.responseText}"
         }
 
     let getAccessoriesLayout host (auth: AuthResult) =
@@ -137,7 +137,7 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<RoomLayout[]> response.responseText
                 else
-                    Error($"Cannot get room layout from {host}. {response.responseText}")
+                    Error $"Cannot get room layout from {host}. {response.responseText}"
         }
 
     let setAccessoryCharacteristic
@@ -164,9 +164,8 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<AccessoryDetails> response.responseText
                 else
-                    Error(
+                    Error
                         $"Cannot set accessory '{uniqueId}' characteristic '{characteristicType}' to '{value}'. {response.responseText}"
-                    )
         }
 
     let getAccessory host (auth: AuthResult) (uniqueId: string) =
@@ -179,7 +178,7 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<AccessoryDetails> response.responseText
                 else
-                    Error($"Cannot get accessory by id '{uniqueId}'. {response.responseText}")
+                    Error $"Cannot get accessory by id '{uniqueId}'. {response.responseText}"
         }
 
 

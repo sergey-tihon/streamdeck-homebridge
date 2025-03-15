@@ -17,7 +17,7 @@ type PluginInnerState = {
 
 let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.ActionPayload) =
     let onError(message: string) =
-        console.error(message)
+        console.error message
         state.replyAgent.Post <| PluginCommand.LogMessage message
         state.replyAgent.Post <| PluginCommand.ShowAlert event.context
 
@@ -25,19 +25,19 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
         match event.action with
         | Domain.ActionName.ConfigUi ->
             match state.client with
-            | Some(client) -> state.replyAgent.Post <| PluginCommand.OpenUrl client.Host
+            | Some client -> state.replyAgent.Post <| PluginCommand.OpenUrl client.Host
             | _ -> onError "Global config is not provided"
         | Domain.ActionName.Switch ->
-            let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
+            let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
 
             match state.client, actionSettings with
-            | Some(client),
-              Some({
+            | Some client,
+              Some {
                        AccessoryId = Some accessoryId
                        CharacteristicType = Some characteristicType
-                   }) ->
+                   } ->
                 match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
-                | Some(ch) ->
+                | Some ch ->
                     let currentValue = ch.value.Value :?> int
                     let targetValue = 1 - currentValue
 
@@ -50,17 +50,17 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                             state.replyAgent.Post <| PluginCommand.ShowOk event.context
                     | Error e -> onError e
                 | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
-                | _ -> onError "Action is not properly configured"
+            | _ -> onError "Action is not properly configured"
         | Domain.ActionName.Set ->
-            let actionSettings = Domain.tryParse<Domain.ActionSetting>(payload.settings)
+            let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
 
             match state.client, actionSettings with
-            | Some(client),
-              Some({
+            | Some(client: Client.HomebridgeClient),
+              Some {
                        AccessoryId = Some accessoryId
                        CharacteristicType = Some characteristicType
                        TargetValue = Some targetValue
-                   }) ->
+                   } ->
                 match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                 | Ok accessory ->
                     let ch = accessory |> PiView.getCharacteristic characteristicType
@@ -70,6 +70,43 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                         state.replyAgent.Post <| PluginCommand.ShowOk event.context
                 | Error e -> onError e
             | _ -> onError "Action is not properly configured"
+        | _ -> onError $"Action {event.action} is not yet supported"
+    }
+
+let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto.DialRotatePayload) =
+    let onError(message: string) =
+        console.error message
+        state.replyAgent.Post <| PluginCommand.LogMessage message
+        state.replyAgent.Post <| PluginCommand.ShowAlert event.context
+
+    async {
+        match event.action with
+        | Domain.ActionName.Adjust ->
+            let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
+
+            match state.client, actionSettings with
+            | Some client,
+              Some {
+                       AccessoryId = Some accessoryId
+                       CharacteristicType = Some characteristicType
+                   } ->
+                match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
+                | Some ch ->
+                    let currentValue = ch.value.Value :?> int
+                    let step = ch.minStep.Value
+                    let targetValue = currentValue + payload.ticks * step
+
+                    match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
+                    | Ok accessory ->
+                        let ch' = accessory |> PiView.getCharacteristic characteristicType
+                        let updatedValue = ch'.value.Value :?> int
+
+                        if targetValue = updatedValue then
+                            state.replyAgent.Post <| PluginCommand.ShowOk event.context
+                    | Error e -> onError e
+                | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
+            | _ -> onError "Action is not properly configured"
+
         | _ -> onError $"Action {event.action} is not yet supported"
     }
 
@@ -88,7 +125,7 @@ let updateAccessories(state: PluginInnerState) =
             let characteristics =
                 match accessories with
                 | Error _ -> state.characteristics
-                | Ok(accessories) ->
+                | Ok accessories ->
                     accessories
                     |> Array.collect(fun accessory ->
                         accessory.serviceCharacteristics
@@ -118,12 +155,12 @@ let updateActions(state: PluginInnerState) =
                   },
                   Some actionState ->
                     match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
-                    | Some(ch) when ch.value.IsSome ->
+                    | Some ch when ch.value.IsSome ->
                         let chValue = ch.value.Value :?> int
 
                         if actionState <> chValue then
                             state.replyAgent.Post <| PluginCommand.SetState(context, chValue)
-                            (fst value, Some(chValue))
+                            fst value, Some chValue
                         else
                             value
                     | _ -> value
@@ -141,14 +178,14 @@ let createPluginAgent() : MailboxProcessor<PluginEvent> =
 
     let updateTimer(state: PluginInnerState) =
         if state.timerId.IsSome then
-            window.clearTimeout(state.timerId.Value)
+            window.clearTimeout state.timerId.Value
 
         let timerId =
             if state.updateInterval = 0 then
                 None
             else
                 window.setInterval(
-                    (fun _ -> agent.Value.Post(PluginEvent.SystemDidWakeUp)),
+                    (fun _ -> agent.Value.Post PluginEvent.SystemDidWakeUp),
                     1000 * state.updateInterval,
                     [||]
                 )
@@ -191,8 +228,8 @@ let createPluginAgent() : MailboxProcessor<PluginEvent> =
                     match msg with
                     | PluginEvent.DidReceiveGlobalSettings settings ->
                         let state =
-                            match Domain.tryParse<Domain.GlobalSettings>(settings) with
-                            | Some(settings) ->
+                            match Domain.tryParse<Domain.GlobalSettings> settings with
+                            | Some(Value = settings) ->
                                 {
                                     state with
                                         client = Some(Client.HomebridgeClient settings)
@@ -206,6 +243,10 @@ let createPluginAgent() : MailboxProcessor<PluginEvent> =
                         let! state = updateActions state
                         do! processKeyUp state event payload
                         return! loop state
+                    | PluginEvent.DialRotate(event, payload) ->
+                        let! state = updateActions state
+                        do! processDialRotate state event payload
+                        return! loop state
                     | PluginEvent.SystemDidWakeUp ->
                         // Fake action triggered by timer to update buttons state
                         let! state = updateActions state
@@ -217,8 +258,8 @@ let createPluginAgent() : MailboxProcessor<PluginEvent> =
                             {
                                 state with
                                     visibleActions =
-                                        match Domain.tryParse<Domain.ActionSetting>(payload.settings) with
-                                        | Some(actionSetting) when event.action = Domain.ActionName.Switch ->
+                                        match Domain.tryParse<Domain.ActionSetting> payload.settings with
+                                        | Some(Value = actionSetting) when event.action = Domain.ActionName.Switch ->
                                             state.visibleActions
                                             |> Map.add event.context (actionSetting, payload.state)
                                         | _ -> state.visibleActions

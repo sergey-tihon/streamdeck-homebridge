@@ -26,12 +26,12 @@ let connectElgatoStreamDeckSocket
         Port = inPort
         UUID = inUUID
         MessageType = inMessageType
-        ApplicationInfo = JSON.parse(inApplicationInfo) :?> ApplicationInfo
+        ApplicationInfo = JSON.parse inApplicationInfo :?> ApplicationInfo
         ActionInfo =
             if isNull inActionInfo then
                 None
             else
-                JSON.parse(inActionInfo) :?> ActionInfo |> Some
+                JSON.parse inActionInfo :?> ActionInfo |> Some
     }
 
     match inMessageType with
@@ -39,7 +39,7 @@ let connectElgatoStreamDeckSocket
         let agent = PluginAgent.createPluginAgent()
         connectPlugin args agent
     | "registerPropertyInspector" ->
-        let subscribe model =
+        let subscribe _ =
             let sub(dispatch: PiView.PiMsg -> unit) =
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
@@ -55,7 +55,7 @@ let connectElgatoStreamDeckSocket
         |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
-    | _ -> console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
+    | _ -> console.error $"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)"
 
 
 let startPropertyInspectorApp() =

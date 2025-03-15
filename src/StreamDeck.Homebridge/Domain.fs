@@ -25,9 +25,12 @@ module ActionName =
     [<Literal>]
     let Set = "com.sergeytihon.homebridge.set"
 
+    [<Literal>]
+    let Adjust = "com.sergeytihon.homebridge.adjust"
+
 let inline tryParse<'t>(setting: obj) : 't option =
     SimpleJson.fromObjectLiteral setting
     |> Option.bind(fun json ->
         match Json.tryConvertFromJsonAs json with
         | Ok x -> Some x
-        | Error e -> None)
+        | Error _ -> None)
