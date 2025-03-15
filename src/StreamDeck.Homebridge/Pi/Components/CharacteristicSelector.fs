@@ -1,6 +1,5 @@
 module StreamDeck.Homebridge.PiCharacteristicSelector
 
-open System.Text.RegularExpressions
 open Feliz
 open StreamDeck.SDK.Components
 open StreamDeck.Homebridge.PiModel
@@ -23,5 +22,3 @@ let view (model: PiModel) (dispatch: PiMsg -> unit) (accessory: Client.Accessory
             let msg = if value = "DEFAULT" then None else Some value
             dispatch <| PiMsg.SelectCharacteristic msg)
     ]
-
-let successConfirmation = Pi.message "" "green" "Button successfully configured"
