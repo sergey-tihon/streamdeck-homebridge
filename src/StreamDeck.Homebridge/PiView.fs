@@ -337,7 +337,8 @@ let update (msg: PiMsg) (model: PiModel) =
                             let! accessory' =
                                 let ch = accessory |> getCharacteristic characteristicType
                                 let currentValue = ch.value.Value :?> int
-                                let targetValue = currentValue + delta
+                                let step = ch.minStep.Value
+                                let targetValue = currentValue + delta * step
                                 client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
 
                             match accessory' with

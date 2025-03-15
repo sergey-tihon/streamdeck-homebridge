@@ -93,7 +93,8 @@ let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto
                 match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
                 | Some ch ->
                     let currentValue = ch.value.Value :?> int
-                    let targetValue = currentValue + payload.ticks
+                    let step = ch.minStep.Value
+                    let targetValue = currentValue + payload.ticks * step
 
                     match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                     | Ok accessory ->
