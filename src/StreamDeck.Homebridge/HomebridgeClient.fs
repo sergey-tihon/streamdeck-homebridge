@@ -17,37 +17,22 @@ type AccessoryDetails = {
     humanType: string
     serviceName: string
     serviceCharacteristics: AccessoryServiceCharacteristic[]
-    //accessoryInformation: AccessoryInformation
-    //values: Map<string, obj>
     instance: AccessoryInstance
     uniqueId: string
 }
 
 and AccessoryServiceCharacteristic = {
-    //aid: int
-    //iid: int
     uuid: string
     ``type``: string
-    //serviceType: string
-    //serviceName: string
     description: string
     value: obj option
     format: string
-    //perms: string[]
-    //unit: string option
     maxValue: int option
     minValue: int option
     minStep: int option
-    //canRead: bool
     canWrite: bool
-//ev: bool
 }
-// and AccessoryInformation =
-//     {
-//         Manufacturer: string
-//         Model: string
-//         Name: string option
-//     }
+
 and AccessoryInstance = {
     name: string
     username: string

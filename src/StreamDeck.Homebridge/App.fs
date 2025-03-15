@@ -40,18 +40,16 @@ let connectElgatoStreamDeckSocket
         connectPlugin args agent
     | "registerPropertyInspector" ->
         let subscribe _ =
-            let sub(dispatch: PiView.PiMsg -> unit) =
+            let sub(dispatch: PiModel.PiMsg -> unit) =
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
 
-                { new System.IDisposable with
-                    member _.Dispose() = ()
-                }
+                Feliz.React.createDisposable id
 
             [ [ "ws" ], sub ]
 
 
-        Program.mkProgram (PiView.init false) PiView.update PiView.render
+        Program.mkProgram (PiModel.init false) PiUpdate.update PiView.render
         |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
@@ -59,7 +57,7 @@ let connectElgatoStreamDeckSocket
 
 
 let startPropertyInspectorApp() =
-    Program.mkProgram (PiView.init true) PiView.update PiView.render
+    Program.mkProgram (PiModel.init true) PiUpdate.update PiView.render
 #if DEBUG
     |> Program.withDebugger
 #endif

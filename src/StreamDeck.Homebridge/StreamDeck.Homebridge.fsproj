@@ -6,9 +6,18 @@
   <ItemGroup>
     <Compile Include="Domain.fs" />
     <Compile Include="HomebridgeClient.fs" />
-    <Compile Include="PiView.fs" />
-    <Compile Include="PiAgent.fs" />
-    <Compile Include="PluginAgent.fs" />
+    <Compile Include="Pi\PiModel.fs" />
+    <Compile Include="Pi\PiUpdate.fs" />
+    <Compile Include="Pi\Components\AccessorySelector.fs" />
+    <Compile Include="Pi\Components\Confirmation.fs" />
+    <Compile Include="Pi\Components\CharacteristicSelector.fs" />
+    <Compile Include="Pi\Components\LoginComponent.fs" />
+    <Compile Include="Pi\Components\ActionSwitch.fs" />
+    <Compile Include="Pi\Components\ActionSet.fs" />
+    <Compile Include="Pi\Components\ActionAdjust.fs" />
+    <Compile Include="Pi\PiView.fs" />
+    <Compile Include="Agents\PiAgent.fs" />
+    <Compile Include="Agents\PluginAgent.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -3,6 +3,7 @@ module StreamDeck.Homebridge.PluginAgent
 open Browser.Dom
 open StreamDeck.SDK
 open StreamDeck.SDK.PluginModel
+open StreamDeck.Homebridge
 open System
 
 type PluginInnerState = {
@@ -43,7 +44,7 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
 
                     match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                     | Ok accessory ->
-                        let ch' = accessory |> PiView.getCharacteristic characteristicType
+                        let ch' = accessory |> PiUpdate.getCharacteristic characteristicType
                         let updatedValue = ch'.value.Value :?> int
 
                         if targetValue = updatedValue then
@@ -63,7 +64,7 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                    } ->
                 match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                 | Ok accessory ->
-                    let ch = accessory |> PiView.getCharacteristic characteristicType
+                    let ch = accessory |> PiUpdate.getCharacteristic characteristicType
                     let currentValue = ch.value.Value :?> float
 
                     if abs(targetValue - currentValue) < 1e-8 then
@@ -98,7 +99,7 @@ let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto
 
                     match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                     | Ok accessory ->
-                        let ch' = accessory |> PiView.getCharacteristic characteristicType
+                        let ch' = accessory |> PiUpdate.getCharacteristic characteristicType
                         let updatedValue = ch'.value.Value :?> int
 
                         if targetValue = updatedValue then
