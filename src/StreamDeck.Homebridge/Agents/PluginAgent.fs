@@ -95,9 +95,10 @@ let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto
                 | Some ch ->
                     let currentValue = ch.value.Value :?> int
                     let step = ch.minStep.Value
+                    let speed = actionSettings.Value.Speed |> Option.defaultValue 1
 
                     let targetValue =
-                        currentValue + payload.ticks * step
+                        currentValue + payload.ticks * step * speed
                         |> min ch.maxValue.Value
                         |> max ch.minValue.Value
 

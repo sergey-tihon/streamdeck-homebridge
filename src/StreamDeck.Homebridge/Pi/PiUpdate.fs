@@ -227,6 +227,17 @@ let update (msg: PiMsg) (model: PiModel) =
 
         model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
         model', Cmd.none
+    | PiMsg.ChangeSpeed speed ->
+        let model' = {
+            model with
+                ActionSetting = {
+                    model.ActionSetting with
+                        Speed = speed
+                }
+        }
+
+        model |> sdDispatch(PiCommand.SetSettings model'.ActionSetting)
+        model', Cmd.none
     | PiMsg.EmitEvent payload ->
         let delayedCmd(_: PiMsg -> unit) : unit =
             match model.Client, model.ActionSetting.AccessoryId, model.ActionSetting.CharacteristicType with
@@ -274,7 +285,13 @@ let update (msg: PiMsg) (model: PiModel) =
                                 let ch = accessory |> getCharacteristic characteristicType
                                 let currentValue = ch.value.Value :?> int
                                 let step = ch.minStep.Value
-                                let targetValue = currentValue + delta * step
+                                let speed = model.ActionSetting.Speed |> Option.defaultValue 1
+
+                                let targetValue =
+                                    currentValue + delta * step * speed
+                                    |> min ch.maxValue.Value
+                                    |> max ch.minValue.Value
+
                                 client.SetAccessoryCharacteristic selectedAccessoryId characteristicType targetValue
 
                             match accessory' with

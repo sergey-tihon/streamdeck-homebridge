@@ -38,6 +38,7 @@ type PiMsg =
     | SelectAccessory of uniqueId: string option
     | SelectCharacteristic of characteristicType: string option
     | ChangeTargetValue of targetValue: float option
+    | ChangeSpeed of speed: int option
     | EmitEvent of payload: int option
 
 let init isDevMode =
@@ -62,6 +63,7 @@ let init isDevMode =
                 AccessoryId = None
                 CharacteristicType = None
                 TargetValue = None
+                Speed = None
             }
         }
 

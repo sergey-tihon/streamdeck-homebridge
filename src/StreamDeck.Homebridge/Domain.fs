@@ -13,6 +13,7 @@ type ActionSetting = {
     AccessoryId: string option
     CharacteristicType: string option
     TargetValue: float option
+    Speed: int option
 }
 
 module ActionName =
