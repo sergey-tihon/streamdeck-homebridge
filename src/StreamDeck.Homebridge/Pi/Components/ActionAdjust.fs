@@ -7,6 +7,8 @@ open StreamDeck.Homebridge.PiModel
 let view (model: PiModel) (dispatch: PiMsg -> unit) = [
     let characteristicSelector = PiCharacteristicSelector.view model dispatch
 
+    yield! PiAccessorySelector.view model dispatch model.RangeAccessories
+
     match model.ActionSetting.AccessoryId with
     | Some uniqueId when model.RangeAccessories.ContainsKey uniqueId ->
         let accessory = model.RangeAccessories |> Map.find uniqueId

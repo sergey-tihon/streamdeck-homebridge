@@ -47,8 +47,8 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                         let ch' = accessory |> PiUpdate.getCharacteristic characteristicType
                         let updatedValue = ch'.value.Value :?> int
 
-                        if targetValue = updatedValue then
-                            state.replyAgent.Post <| PluginCommand.ShowOk event.context
+                        if targetValue <> updatedValue then
+                            state.replyAgent.Post <| PluginCommand.ShowAlert event.context
                     | Error e -> onError e
                 | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
             | _ -> onError "Action is not properly configured"
@@ -67,8 +67,8 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
                     let ch = accessory |> PiUpdate.getCharacteristic characteristicType
                     let currentValue = ch.value.Value :?> float
 
-                    if abs(targetValue - currentValue) < 1e-8 then
-                        state.replyAgent.Post <| PluginCommand.ShowOk event.context
+                    if abs(targetValue - currentValue) > 1e-8 then
+                        state.replyAgent.Post <| PluginCommand.ShowAlert event.context
                 | Error e -> onError e
             | _ -> onError "Action is not properly configured"
         | _ -> onError $"Action {event.action} is not yet supported"
@@ -95,15 +95,33 @@ let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto
                 | Some ch ->
                     let currentValue = ch.value.Value :?> int
                     let step = ch.minStep.Value
-                    let targetValue = currentValue + payload.ticks * step
+
+                    let targetValue =
+                        currentValue + payload.ticks * step
+                        |> min ch.maxValue.Value
+                        |> max ch.minValue.Value
 
                     match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
                     | Ok accessory ->
                         let ch' = accessory |> PiUpdate.getCharacteristic characteristicType
                         let updatedValue = ch'.value.Value :?> int
 
-                        if targetValue = updatedValue then
-                            state.replyAgent.Post <| PluginCommand.ShowOk event.context
+                        PluginCommand.SetFeedback(
+                            event.context,
+                            {|
+                                title = ch'.description
+                                value = updatedValue
+                                indicator = {|
+                                    value =
+                                        (updatedValue - ch.minValue.Value) * 100
+                                        / (ch.maxValue.Value - ch.minValue.Value)
+                                |}
+                            |}
+                        )
+                        |> state.replyAgent.Post
+
+                        if targetValue <> updatedValue then
+                            state.replyAgent.Post <| PluginCommand.ShowAlert event.context
                     | Error e -> onError e
                 | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
             | _ -> onError "Action is not properly configured"

@@ -7,8 +7,6 @@ open StreamDeck.Homebridge
 open StreamDeck.Homebridge.PiModel
 
 let render (model: PiModel) (dispatch: PiMsg -> unit) =
-    let accessorySelector = PiAccessorySelector.view model dispatch
-
     Feliz.Html.div [
         prop.className SdPi.Wrapper
         prop.children [
@@ -38,15 +36,9 @@ let render (model: PiModel) (dispatch: PiMsg -> unit) =
                                 dispatch <| PiMsg.SelectActionType msg)
                         ]
                     | Some Domain.ActionName.ConfigUi -> PiConfirmation.view
-                    | Some Domain.ActionName.Switch ->
-                        yield! accessorySelector model.SwitchAccessories
-                        yield! PiActionSwitch.view model dispatch
-                    | Some Domain.ActionName.Set ->
-                        yield! accessorySelector model.RangeAccessories
-                        yield! PiActionSet.view model dispatch
-                    | Some Domain.ActionName.Adjust ->
-                        yield! accessorySelector model.RangeAccessories
-                        yield! PiActionAdjust.view model dispatch
+                    | Some Domain.ActionName.Switch -> yield! PiActionSwitch.view model dispatch
+                    | Some Domain.ActionName.Set -> yield! PiActionSet.view model dispatch
+                    | Some Domain.ActionName.Adjust -> yield! PiActionAdjust.view model dispatch
                     | Some ty -> Html.p [ prop.text $"Unsupported action type {ty}" ]
 
                     Pi.button "Logout" (fun _ -> dispatch <| PiMsg.Logout)
