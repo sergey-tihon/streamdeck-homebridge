@@ -3,7 +3,7 @@ module StreamDeck.Homebridge.PiAgent
 open Browser.Dom
 open StreamDeck.SDK.Dto
 open StreamDeck.SDK.PiModel
-open StreamDeck.Homebridge.PiView
+open StreamDeck.Homebridge.PiModel
 
 let createPiAgent(dispatch: PiMsg -> unit) : MailboxProcessor<PiEvent> =
     MailboxProcessor.Start(fun inbox ->
