@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/StreamDeck.Homebridge/StreamDeck.Homebridge.fsproj" />
+  <Project Path="src/StreamDeck.SDK/StreamDeck.SDK.fsproj" />
+</Solution>
