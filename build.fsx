@@ -1,14 +1,13 @@
-#r "nuget: Fun.Build, 1.1.16"
+#r "nuget: Fun.Build, 1.1.17"
 
 open Fun.Build
-open System.IO
 
 let options = {|
     GithubAction = EnvArg.Create("GITHUB_ACTION", description = "Run only in in github action container")
 |}
 
 let version =
-    Changelog.GetLastVersion(__SOURCE_DIRECTORY__)
+    Changelog.GetLastVersion __SOURCE_DIRECTORY__
     |> Option.defaultWith(fun () -> failwith "Version is not found")
 
 
