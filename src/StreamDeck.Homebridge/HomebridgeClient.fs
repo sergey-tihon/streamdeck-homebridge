@@ -143,6 +143,7 @@ module private Api =
                 Http.request $"%s{host}/api/accessories/{uniqueId}"
                 |> Http.method PUT
                 |> Http.content(BodyContent.Text body)
+                |> Http.withTimeout 5_000
                 |> sendWithAuth auth
 
             return

@@ -47,10 +47,10 @@ let init isDevMode =
             IsDevMode = isDevMode
             ReplyAgent = None
             ServerInfo = {
-                Host = "http://192.168.68.66:8581"
+                Host = "http://CHANGE_ME_HOMEBRIDGE_HOST:8581"
                 UserName = "admin"
                 Password = "admin"
-                UpdateInterval = 5
+                UpdateInterval = 3
             }
             Client = Error null
             IsLoading = Ok false

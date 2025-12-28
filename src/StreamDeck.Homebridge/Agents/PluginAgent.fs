@@ -74,61 +74,85 @@ let processKeyUp (state: PluginInnerState) (event: Dto.Event) (payload: Dto.Acti
         | _ -> onError $"Action {event.action} is not yet supported"
     }
 
-let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto.DialRotatePayload) =
-    let onError(message: string) =
-        console.error message
-        state.replyAgent.Post <| PluginCommand.LogMessage message
-        state.replyAgent.Post <| PluginCommand.ShowAlert event.context
+/// Handle dial rotation with fire-and-forget API calls and optimistic cache updates
+let processDialRotate (state: PluginInnerState) (event: Dto.Event) (payload: Dto.DialRotatePayload) : PluginInnerState =
+    let context = event.context
 
-    async {
-        match event.action with
-        | Domain.ActionName.Adjust ->
-            let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
+    match event.action with
+    | Domain.ActionName.Adjust ->
+        let actionSettings = Domain.tryParse<Domain.ActionSetting> payload.settings
 
-            match state.client, actionSettings with
-            | Some client,
-              Some {
-                       AccessoryId = Some accessoryId
-                       CharacteristicType = Some characteristicType
-                   } ->
-                match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
-                | Some ch ->
-                    let currentValue = ch.value.Value :?> int
-                    let step = ch.minStep.Value
-                    let speed = actionSettings.Value.Speed |> Option.defaultValue 1
+        match state.client, actionSettings with
+        | Some client,
+          Some {
+                   AccessoryId = Some accessoryId
+                   CharacteristicType = Some characteristicType
+               } ->
+            match state.characteristics |> Map.tryFind(accessoryId, characteristicType) with
+            | Some ch ->
+                let currentValue = ch.value.Value :?> int
+                let step = ch.minStep |> Option.defaultValue 1
+                let speed = actionSettings.Value.Speed |> Option.defaultValue 1
 
-                    let targetValue =
-                        currentValue + payload.ticks * step * speed
-                        |> min ch.maxValue.Value
-                        |> max ch.minValue.Value
+                let targetValue =
+                    currentValue + payload.ticks * step * speed
+                    |> min(ch.maxValue |> Option.defaultValue 100)
+                    |> max(ch.minValue |> Option.defaultValue 0)
 
+                // Update UI immediately (optimistic)
+                PluginCommand.SetFeedback(
+                    context,
+                    {|
+                        title = ch.description
+                        value = targetValue
+                        indicator = {|
+                            value =
+                                let minVal = ch.minValue |> Option.defaultValue 0
+                                let maxVal = ch.maxValue |> Option.defaultValue 100
+
+                                if maxVal = minVal then
+                                    0
+                                else
+                                    (targetValue - minVal) * 100 / (maxVal - minVal)
+                        |}
+                    |}
+                )
+                |> state.replyAgent.Post
+
+                // Fire and forget - send the API request without awaiting
+                async {
                     match! client.SetAccessoryCharacteristic accessoryId characteristicType targetValue with
-                    | Ok accessory ->
-                        let ch' = accessory |> PiUpdate.getCharacteristic characteristicType
-                        let updatedValue = ch'.value.Value :?> int
+                    | Ok _ -> ()
+                    | Error e ->
+                        console.error($"Dial rotation API error: {e}")
+                        state.replyAgent.Post <| PluginCommand.LogMessage e
+                }
+                |> Async.StartImmediate
 
-                        PluginCommand.SetFeedback(
-                            event.context,
-                            {|
-                                title = ch'.description
-                                value = updatedValue
-                                indicator = {|
-                                    value =
-                                        (updatedValue - ch.minValue.Value) * 100
-                                        / (ch.maxValue.Value - ch.minValue.Value)
-                                |}
-                            |}
-                        )
-                        |> state.replyAgent.Post
+                // Update characteristics cache optimistically
+                let updatedCh = {
+                    ch with
+                        value = Some(box targetValue)
+                }
 
-                        if targetValue <> updatedValue then
-                            state.replyAgent.Post <| PluginCommand.ShowAlert event.context
-                    | Error e -> onError e
-                | _ -> onError $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
-            | _ -> onError "Action is not properly configured"
-
-        | _ -> onError $"Action {event.action} is not yet supported"
-    }
+                {
+                    state with
+                        characteristics =
+                            state.characteristics
+                            |> Map.add (accessoryId, characteristicType) updatedCh
+                }
+            | None ->
+                console.error $"Cannot find characteristic by id '{accessoryId}, {characteristicType}'."
+                state
+        | None, _ ->
+            console.error "Homebridge client is not configured"
+            state
+        | _, _ ->
+            console.error "Action is not properly configured for dial rotation"
+            state
+    | _ ->
+        console.error $"Action {event.action} is not yet supported for dial rotation"
+        state
 
 let updateAccessories(state: PluginInnerState) =
     async {
@@ -264,8 +288,9 @@ let createPluginAgent() : MailboxProcessor<PluginEvent> =
                         do! processKeyUp state event payload
                         return! loop state
                     | PluginEvent.DialRotate(event, payload) ->
-                        let! state = updateActions state
-                        do! processDialRotate state event payload
+                        // Handle dial rotation synchronously with fire-and-forget API calls
+                        // No updateActions call - use cached values for responsiveness
+                        let state = processDialRotate state event payload
                         return! loop state
                     | PluginEvent.SystemDidWakeUp ->
                         // Fake action triggered by timer to update buttons state
