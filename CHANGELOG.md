@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.6.0.0] - 2026-01-01
+## [1.6.0.0] - 2025-12-28
 
 - Update StreamDeck SDK (WebSocket API)
 - Migration to Elgato CLI
