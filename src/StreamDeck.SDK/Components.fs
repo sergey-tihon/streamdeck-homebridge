@@ -10,7 +10,7 @@ let input (label: string) props =
         prop.type' "field"
         prop.children [
             Html.div [ prop.className SdPi.ItemLabel; prop.text label ]
-            Html.input((prop.className SdPi.ItemValue) :: props)
+            Html.input(prop.className SdPi.ItemValue :: props)
         ]
     ]
 
@@ -19,7 +19,7 @@ let select (label: string) props =
         prop.className SdPi.Item
         prop.children [
             Html.div [ prop.className SdPi.ItemLabel; prop.text label ]
-            Html.select((prop.classes [ SdPi.ItemValue; "select" ]) :: props)
+            Html.select(prop.classes [ SdPi.ItemValue; "select" ] :: props)
         ]
     ]
 

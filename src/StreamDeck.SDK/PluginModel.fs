@@ -61,7 +61,7 @@ and [<RequireQualifiedAccess>] PluginCommand =
     /// Sends a message to the property inspector.
     | SendToPropertyInspector of context: string * payload: obj
     /// Set's the feedback of an existing layout associated with an action instance.
-    | SetFeedback of context: string * payload: Dictionary<string, obj>
+    | SetFeedback of context: string * payload: obj
     /// Sets the layout associated with an action instance.
     | SetFeedbackLayout of context: string * payload: SetFeedbackLayoutPayload
     /// Sets the global settings associated with the plugin.

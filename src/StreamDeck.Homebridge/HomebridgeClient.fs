@@ -17,37 +17,22 @@ type AccessoryDetails = {
     humanType: string
     serviceName: string
     serviceCharacteristics: AccessoryServiceCharacteristic[]
-    //accessoryInformation: AccessoryInformation
-    //values: Map<string, obj>
     instance: AccessoryInstance
     uniqueId: string
 }
 
 and AccessoryServiceCharacteristic = {
-    //aid: int
-    //iid: int
     uuid: string
     ``type``: string
-    //serviceType: string
-    //serviceName: string
     description: string
     value: obj option
     format: string
-    //perms: string[]
-    //unit: string option
     maxValue: int option
     minValue: int option
     minStep: int option
-    //canRead: bool
     canWrite: bool
-//ev: bool
 }
-// and AccessoryInformation =
-//     {
-//         Manufacturer: string
-//         Model: string
-//         Name: string option
-//     }
+
 and AccessoryInstance = {
     name: string
     username: string
@@ -108,7 +93,7 @@ module private Api =
                 if response.statusCode = 201 then
                     Json.tryParseAs<AuthResult> response.responseText
                 else
-                    let msg = $"Cannot authenticate to the server.\nResponse:{Json.serialize(response)}"
+                    let msg = $"Cannot authenticate to the server.\nResponse:{Json.serialize response}"
                     Error msg
         }
 
@@ -123,7 +108,7 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<AccessoryDetails[]> response.responseText
                 else
-                    Error($"Cannot get accessories list from {host}. {response.responseText}")
+                    Error $"Cannot get accessories list from {host}. {response.responseText}"
         }
 
     let getAccessoriesLayout host (auth: AuthResult) =
@@ -137,7 +122,7 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<RoomLayout[]> response.responseText
                 else
-                    Error($"Cannot get room layout from {host}. {response.responseText}")
+                    Error $"Cannot get room layout from {host}. {response.responseText}"
         }
 
     let setAccessoryCharacteristic
@@ -158,15 +143,15 @@ module private Api =
                 Http.request $"%s{host}/api/accessories/{uniqueId}"
                 |> Http.method PUT
                 |> Http.content(BodyContent.Text body)
+                |> Http.withTimeout 5_000
                 |> sendWithAuth auth
 
             return
                 if response.statusCode = 200 then
                     Json.tryParseAs<AccessoryDetails> response.responseText
                 else
-                    Error(
+                    Error
                         $"Cannot set accessory '{uniqueId}' characteristic '{characteristicType}' to '{value}'. {response.responseText}"
-                    )
         }
 
     let getAccessory host (auth: AuthResult) (uniqueId: string) =
@@ -179,7 +164,7 @@ module private Api =
                 if response.statusCode = 200 then
                     Json.tryParseAs<AccessoryDetails> response.responseText
                 else
-                    Error($"Cannot get accessory by id '{uniqueId}'. {response.responseText}")
+                    Error $"Cannot get accessory by id '{uniqueId}'. {response.responseText}"
         }
 
 

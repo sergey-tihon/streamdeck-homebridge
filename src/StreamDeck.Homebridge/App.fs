@@ -26,12 +26,12 @@ let connectElgatoStreamDeckSocket
         Port = inPort
         UUID = inUUID
         MessageType = inMessageType
-        ApplicationInfo = JSON.parse(inApplicationInfo) :?> ApplicationInfo
+        ApplicationInfo = JSON.parse inApplicationInfo :?> ApplicationInfo
         ActionInfo =
             if isNull inActionInfo then
                 None
             else
-                JSON.parse(inActionInfo) :?> ActionInfo |> Some
+                JSON.parse inActionInfo :?> ActionInfo |> Some
     }
 
     match inMessageType with
@@ -39,27 +39,25 @@ let connectElgatoStreamDeckSocket
         let agent = PluginAgent.createPluginAgent()
         connectPlugin args agent
     | "registerPropertyInspector" ->
-        let subscribe model =
-            let sub(dispatch: PiView.PiMsg -> unit) =
+        let subscribe _ =
+            let sub(dispatch: PiModel.PiMsg -> unit) =
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
 
-                { new System.IDisposable with
-                    member _.Dispose() = ()
-                }
+                Feliz.FsReact.createDisposable id
 
             [ [ "ws" ], sub ]
 
 
-        Program.mkProgram (PiView.init false) PiView.update PiView.render
+        Program.mkProgram (PiModel.init false) PiUpdate.update PiView.render
         |> Program.withSubscription subscribe
         |> Program.withReactBatched "elmish-app"
         |> Program.run
-    | _ -> console.error($"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)")
+    | _ -> console.error $"Unknown message type: %s{inMessageType} (connectElgatoStreamDeckSocket)"
 
 
 let startPropertyInspectorApp() =
-    Program.mkProgram (PiView.init true) PiView.update PiView.render
+    Program.mkProgram (PiModel.init true) PiUpdate.update PiView.render
 #if DEBUG
     |> Program.withDebugger
 #endif

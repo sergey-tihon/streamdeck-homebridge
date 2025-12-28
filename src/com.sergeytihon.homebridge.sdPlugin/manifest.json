@@ -22,7 +22,7 @@
     },
     {
       "Icon": "resources/actions/set",
-      "Name": "Set state",
+      "Name": "Set State",
       "States": [
         {
           "Image": "resources/actions/set",
@@ -45,6 +45,20 @@
       "SupportedInMultiActions": true,
       "Tooltip": "Open Homebridge UI",
       "UUID": "com.sergeytihon.homebridge.config-ui"
+    },
+    {
+      "Icon": "resources/actions/adjust",
+      "Name": "Adjust State",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1"
+      },
+      "States": [
+        {
+          "Image": "resources/pluginIcon"
+        }
+      ],
+      "UUID": "com.sergeytihon.homebridge.adjust"
     }
   ],
   "Category": "Homebridge",
