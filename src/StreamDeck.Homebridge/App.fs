@@ -44,7 +44,7 @@ let connectElgatoStreamDeckSocket
                 let agent = PiAgent.createPiAgent dispatch
                 connectPropertyInspector args agent
 
-                Feliz.React.createDisposable id
+                Feliz.FsReact.createDisposable id
 
             [ [ "ws" ], sub ]
 
