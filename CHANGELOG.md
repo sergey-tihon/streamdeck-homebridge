@@ -1,10 +1,10 @@
 # Changelog
 
-## [1.6.0.0] - 2025-03-09
+## [1.6.0.0] - 2026-01-01
 
 - Update StreamDeck SDK (WebSocket API)
 - Migration to Elgato CLI
-- Dependencies update (.NET 9, Fable 4.24, Node 22, React 19)
+- Dependencies update (.NET 10, Fable 5, Node 22)
 
 ## [1.5.0] - 2023-12-28
 
