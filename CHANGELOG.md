@@ -2,6 +2,7 @@
 
 ## [1.6.0.0] - 2025-12-28
 
+- Added Dial Support (#49)
 - Update StreamDeck SDK (WebSocket API)
 - Migration to Elgato CLI
 - Dependencies update (.NET 10, Fable 5, Node 22)
