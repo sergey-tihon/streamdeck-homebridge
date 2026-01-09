@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.6.1.0] - 2025-12-28
+## [1.6.1.0] - 2026-01-11
 
 - Add accessories list refresh button
 - Replaced colored icon by white icon
