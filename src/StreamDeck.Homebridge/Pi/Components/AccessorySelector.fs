@@ -51,6 +51,6 @@ let view (model: PiModel) (dispatch: PiMsg -> unit) (accessories: Map<string, Cl
                     let msg = if value = "DEFAULT" then None else Some value
                     dispatch <| PiMsg.SelectAccessory msg)
             ]
-            Pi.iconButton refreshIcon (fun () -> dispatch PiMsg.GetData)
+            Pi.iconButton refreshIcon "Refresh accessories" (fun () -> dispatch PiMsg.GetData)
         ]
 ]
