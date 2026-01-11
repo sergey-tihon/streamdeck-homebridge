@@ -4,6 +4,21 @@ open Feliz
 open StreamDeck.SDK.Components
 open StreamDeck.Homebridge.PiModel
 
+let private refreshIcon =
+    Svg.svg [
+        svg.xmlns "http://www.w3.org/2000/svg"
+        svg.height 16
+        svg.width 16
+        svg.viewBox(0, 0, 24, 24)
+        svg.fill "#9C9C9C"
+        svg.children [
+            Svg.path [
+                svg.d
+                    "M12 20q-3.35 0-5.675-2.325Q4 15.35 4 12q0-3.35 2.325-5.675Q8.65 4 12 4q1.725 0 3.3.713 1.575.712 2.7 2.037V4h2v7h-7V9h4.2q-.8-1.4-2.187-2.2Q13.625 6 12 6 9.5 6 7.75 7.75T6 12q0 2.5 1.75 4.25T12 18q1.925 0 3.475-1.1T17.65 14h2.1q-.7 2.65-2.85 4.325Q14.75 20 12 20Z"
+            ]
+        ]
+    ]
+
 let view (model: PiModel) (dispatch: PiMsg -> unit) (accessories: Map<string, Client.AccessoryDetails>) = [
     match model.ActionSetting.AccessoryId with
     | Some uniqueId when not <| accessories.ContainsKey uniqueId ->
@@ -14,38 +29,40 @@ let view (model: PiModel) (dispatch: PiMsg -> unit) (accessories: Map<string, Cl
 
         Pi.button "Reset button config" (fun _ -> dispatch <| PiMsg.SelectAccessory None)
     | _ ->
-        Pi.select "Accessory" [
-            prop.value(model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
-            prop.children [
-                Html.option [ prop.value "DEFAULT" ]
-                for room in model.Layout do
-                    Html.optgroup [
-                        prop.custom("label", room.name)
-                        //prop.label room.name
-                        prop.children(
-                            room.services
-                            |> Array.toList
-                            |> List.choose(fun itemInfo ->
-                                Map.tryFind itemInfo.uniqueId accessories
-                                |> Option.map(fun accessoryDetails ->
-                                    let name =
-                                        itemInfo.customName
-                                        |> Option.defaultValue accessoryDetails.serviceName
+        Pi.row "Accessory" [
+            Pi.selectElement [
+                prop.style [ style.marginRight 4 ]
+                prop.value(model.ActionSetting.AccessoryId |> Option.defaultValue "DEFAULT")
+                prop.children [
+                    Html.option [ prop.value "DEFAULT" ]
+                    for room in model.Layout do
+                        Html.optgroup [
+                            prop.custom("label", room.name)
+                            prop.children(
+                                room.services
+                                |> Array.toList
+                                |> List.choose(fun itemInfo ->
+                                    Map.tryFind itemInfo.uniqueId accessories
+                                    |> Option.map(fun accessoryDetails ->
+                                        let name =
+                                            itemInfo.customName
+                                            |> Option.defaultValue accessoryDetails.serviceName
 
-                                    name, accessoryDetails))
-                            |> List.sortBy fst
-                            |> List.map(fun (name, accessoryDetails) ->
-                                Html.option [
-                                    prop.value accessoryDetails.uniqueId
-                                    prop.disabled(accessoryDetails.serviceCharacteristics.Length = 0)
-                                    prop.text name
-                                ])
-                        )
-                    ]
+                                        name, accessoryDetails))
+                                |> List.sortBy fst
+                                |> List.map(fun (name, accessoryDetails) ->
+                                    Html.option [
+                                        prop.value accessoryDetails.uniqueId
+                                        prop.disabled(accessoryDetails.serviceCharacteristics.Length = 0)
+                                        prop.text name
+                                    ])
+                            )
+                        ]
+                ]
+                prop.onChange(fun (value: string) ->
+                    let msg = if value = "DEFAULT" then None else Some value
+                    dispatch <| PiMsg.SelectAccessory msg)
             ]
-            prop.onChange(fun (value: string) ->
-                //let value = x.Value
-                let msg = if value = "DEFAULT" then None else Some value
-                dispatch <| PiMsg.SelectAccessory msg)
+            Pi.iconButton refreshIcon "Refresh accessories" (fun () -> dispatch PiMsg.GetData)
         ]
 ]

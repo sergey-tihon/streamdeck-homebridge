@@ -1,6 +1,7 @@
 module StreamDeck.Homebridge.PiLogin
 
 open System.Text.RegularExpressions
+open Browser.Types
 open Feliz
 open StreamDeck.SDK.Components
 open StreamDeck.Homebridge.PiModel
@@ -10,11 +11,14 @@ let view (model: PiModel) (dispatch: PiMsg -> unit) error = [
         Pi.message "caution" "red" error
 
     Pi.input "Server" [
-        prop.value model.ServerInfo.Host
+        prop.defaultValue model.ServerInfo.Host
         prop.placeholder "e.g. http://192.168.68.65:8581"
         prop.required true
         prop.pattern(Regex "^(.*:)//([A-Za-z0-9\-\.]+)(:[0-9]+)?$")
-        prop.onChange(fun (value: string) ->
+        prop.onBlur(fun event ->
+            let input = event.target :?> HTMLInputElement
+            let value = input.value
+
             dispatch
             <| PiMsg.UpdateServerInfo {
                 model.ServerInfo with
@@ -27,9 +31,12 @@ let view (model: PiModel) (dispatch: PiMsg -> unit) error = [
     ]
 
     Pi.input "UserName" [
-        prop.value model.ServerInfo.UserName
+        prop.defaultValue model.ServerInfo.UserName
         prop.required true
-        prop.onChange(fun value ->
+        prop.onBlur(fun event ->
+            let input = event.target :?> HTMLInputElement
+            let value = input.value
+
             dispatch
             <| PiMsg.UpdateServerInfo {
                 model.ServerInfo with
@@ -39,9 +46,12 @@ let view (model: PiModel) (dispatch: PiMsg -> unit) error = [
 
     Pi.input "Password" [
         prop.type' "password"
-        prop.value model.ServerInfo.Password
+        prop.defaultValue model.ServerInfo.Password
         prop.required true
-        prop.onChange(fun value ->
+        prop.onBlur(fun event ->
+            let input = event.target :?> HTMLInputElement
+            let value = input.value
+
             let settings = {
                 model.ServerInfo with
                     Password = value
