@@ -35,7 +35,7 @@ let row (label: string) (children: ReactElement list) =
         )
     ]
 
-let iconButton (icon: string) (tooltip: string) (onClick: unit -> unit) =
+let iconButton (icon: ReactElement) (tooltip: string) (onClick: unit -> unit) =
     Html.button [
         prop.style [
             style.backgroundColor "#2d2d2d"
@@ -50,7 +50,7 @@ let iconButton (icon: string) (tooltip: string) (onClick: unit -> unit) =
             style.marginRight 13
         ]
         prop.title tooltip
-        prop.dangerouslySetInnerHTML icon
+        prop.children [ icon ]
         prop.onClick(fun _ -> onClick())
     ]
 
